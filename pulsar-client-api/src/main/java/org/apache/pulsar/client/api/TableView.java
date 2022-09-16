@@ -103,4 +103,14 @@ public interface TableView<T> extends Closeable {
      * @return a future that can used to track when the table view has been closed.
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     *  Checks if the table view is actively reading messages.
+     *
+     *  For example, if the internal reader is interrupted, the table view may be in the inactive state
+     *  and stop reading messages. In this case, the caller may recreate a new table view.
+     *
+     *  @return true if active. false if inactive.
+     */
+    boolean isActive();
 }

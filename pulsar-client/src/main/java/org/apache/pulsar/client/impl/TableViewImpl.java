@@ -48,18 +48,22 @@ public class TableViewImpl<T> implements TableView<T> {
     private final ConcurrentMap<String, T> data;
     private final Map<String, T> immutableData;
 
-    private final CompletableFuture<Reader<T>> reader;
+    private final CompletableFuture<Reader<T>> readerFuture;
+
+    private Reader<T> reader;
 
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
+    private volatile boolean isActive;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+        this.isActive = true;
         this.conf = conf;
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
-        this.reader = client.newReader(schema)
+        this.readerFuture = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
@@ -67,10 +71,11 @@ public class TableViewImpl<T> implements TableView<T> {
                 .readCompacted(true)
                 .poolMessages(true)
                 .createAsync();
+
     }
 
     CompletableFuture<TableView<T>> start() {
-        return reader.thenCompose(this::readAllExistingMessages)
+        return readerFuture.thenCompose(this::readAllExistingMessages)
                 .thenApply(__ -> this);
     }
 
@@ -131,7 +136,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return reader.thenCompose(Reader::closeAsync);
+        return readerFuture.thenCompose(Reader::closeAsync);
     }
 
     @Override
@@ -180,13 +185,13 @@ public class TableViewImpl<T> implements TableView<T> {
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
-
+        this.reader = reader;
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        readAllExistingMessages(reader, future, startTime, messagesRead);
+        readAllExistingMessages(future, startTime, messagesRead);
         return future;
     }
 
-    private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Reader<T>> future, long startTime,
+    private void readAllExistingMessages(CompletableFuture<Reader<T>> future, long startTime,
                                          AtomicLong messagesRead) {
         reader.hasMessageAvailableAsync()
                 .thenAccept(hasMessage -> {
@@ -195,9 +200,10 @@ public class TableViewImpl<T> implements TableView<T> {
                                .thenAccept(msg -> {
                                   messagesRead.incrementAndGet();
                                   handleMessage(msg);
-                                  readAllExistingMessages(reader, future, startTime, messagesRead);
+                                  readAllExistingMessages(future, startTime, messagesRead);
                                }).exceptionally(ex -> {
                                    future.completeExceptionally(ex);
+                                   isActive = false;
                                    return null;
                                });
                    } else {
@@ -209,19 +215,28 @@ public class TableViewImpl<T> implements TableView<T> {
                                messagesRead,
                                durationMillis / 1000.0);
                        future.complete(reader);
-                       readTailMessages(reader);
+                       readTailMessages();
                    }
                 });
     }
 
-    private void readTailMessages(Reader<T> reader) {
+    private void readTailMessages() {
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     handleMessage(msg);
-                    readTailMessages(reader);
+                    readTailMessages();
                 }).exceptionally(ex -> {
-                    log.info("Reader {} was interrupted", reader.getTopic());
+                    isActive = false;
+                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                        log.warn("Reader {} was interrupted. {}", reader.getTopic(), ex.getMessage());
+                    } else {
+                        log.error("Reader {} was interrupted.", reader.getTopic(), ex);
+                    }
                     return null;
                 });
+    }
+
+    public boolean isActive() {
+        return isActive;
     }
 }

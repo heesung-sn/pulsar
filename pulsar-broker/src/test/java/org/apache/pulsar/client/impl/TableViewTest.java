@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
@@ -29,16 +31,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -216,5 +222,50 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(tv1.size(), 1);
         assertEquals(tv.get("key2"), "value2");
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testInActive() throws Exception {
+        String topic = "persistent://public/default/test";
+        final TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        assertTrue(tv.isActive());
+        Reader<String> reader = (Reader<String>) FieldUtils.readField(tv, "reader", true);
+        reader.close();
+        producer.newMessage().key("key1").value("value1").send();
+        waitForInActive(tv);
+        assertTrue(!tv.isActive());
+
+        final TableView<String> tv2 = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+        assertTrue(tv2.isActive());
+
+        Reader<String> mockReader = mock(ReaderImpl.class, new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                throw new RuntimeException("mock error");
+            }
+        });
+
+        FieldUtils.writeField(tv2, "reader", mockReader, true);
+        producer.newMessage().key("key2").value("value2").send();
+        waitForInActive(tv2);
+        assertTrue(!tv2.isActive());
+    }
+
+    private static void waitForInActive(TableView<String> tv) throws InterruptedException {
+        int retry = 0;
+        while (tv.isActive()) {
+            Thread.sleep(250);
+            if (retry++ > 5) {
+                break;
+            }
+        }
     }
 }
