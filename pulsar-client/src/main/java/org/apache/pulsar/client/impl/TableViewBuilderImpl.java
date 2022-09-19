@@ -76,4 +76,10 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
        conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
        return this;
     }
+
+    @Override
+    public TableViewBuilder<T> faultTolerant(boolean faultTolerant) {
+        conf.setFaultTolerant(faultTolerant);
+        return this;
+    }
 }

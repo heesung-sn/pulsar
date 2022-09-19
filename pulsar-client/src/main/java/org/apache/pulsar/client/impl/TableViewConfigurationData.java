@@ -30,6 +30,7 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
 
     private String topicName = null;
     private long autoUpdatePartitionsSeconds = 60;
+    private boolean faultTolerant = false;
 
     @Override
     public TableViewConfigurationData clone() {
@@ -37,6 +38,7 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
             TableViewConfigurationData clone = (TableViewConfigurationData) super.clone();
             clone.setTopicName(topicName);
             clone.setAutoUpdatePartitionsSeconds(autoUpdatePartitionsSeconds);
+            clone.setFaultTolerant(faultTolerant);
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();

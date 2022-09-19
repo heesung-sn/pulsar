@@ -92,4 +92,14 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+
+    /**
+     * Set the fault tolerant mode.
+     * If set true, the table view automatically tries to recover the table view state from failures.
+     * By default, faultTolerant is false.
+     * @param  faultTolerant true or false
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> faultTolerant(boolean faultTolerant);
 }

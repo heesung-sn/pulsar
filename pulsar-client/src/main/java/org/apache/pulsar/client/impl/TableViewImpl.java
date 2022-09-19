@@ -48,7 +48,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private final ConcurrentMap<String, T> data;
     private final Map<String, T> immutableData;
 
-    private final CompletableFuture<Reader<T>> readerFuture;
+    private CompletableFuture<Reader<T>> readerFuture;
 
     private Reader<T> reader;
 
@@ -56,21 +56,25 @@ public class TableViewImpl<T> implements TableView<T> {
     private final ReentrantLock listenersMutex;
     private volatile boolean isActive;
 
+    private MessageId lastMessageId;
+
+    private PulsarClientImpl client;
+
+    private Schema<T> schema;
+
+    private Backoff recoveryBackoff;
+
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        this.isActive = true;
+        this.client = client;
+        this.schema = schema;
         this.conf = conf;
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
-        this.readerFuture = client.newReader(schema)
-                .topic(conf.getTopicName())
-                .startMessageId(MessageId.earliest)
-                .autoUpdatePartitions(true)
-                .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
-                .readCompacted(true)
-                .poolMessages(true)
-                .createAsync();
+        this.recoveryBackoff = new Backoff(100, TimeUnit.MILLISECONDS,
+                1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        this.readerFuture = createReaderAsync(MessageId.earliest);
 
     }
 
@@ -160,6 +164,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
                 try {
                     listenersMutex.lock();
+                    lastMessageId = msg.getMessageId();
                     if (null == msg.getValue()){
                         data.remove(msg.getKey());
                     } else {
@@ -185,7 +190,6 @@ public class TableViewImpl<T> implements TableView<T> {
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
-        this.reader = reader;
         CompletableFuture<Reader<T>> future = new CompletableFuture<>();
         readAllExistingMessages(future, startTime, messagesRead);
         return future;
@@ -198,12 +202,21 @@ public class TableViewImpl<T> implements TableView<T> {
                    if (hasMessage) {
                        reader.readNextAsync()
                                .thenAccept(msg -> {
-                                  messagesRead.incrementAndGet();
-                                  handleMessage(msg);
-                                  readAllExistingMessages(future, startTime, messagesRead);
+                                   messagesRead.incrementAndGet();
+                                   handleMessage(msg);
+                                   readAllExistingMessages(future, startTime, messagesRead);
                                }).exceptionally(ex -> {
-                                   future.completeExceptionally(ex);
+                                   if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                                       log.warn("Reader {} was interrupted. {}", reader.getTopic(),
+                                               ex.getMessage());
+                                   } else {
+                                       log.error("Reader {} was interrupted.", reader.getTopic(), ex);
+                                   }
                                    isActive = false;
+                                   future.completeExceptionally(ex);
+                                   if (conf.isFaultTolerant()) {
+                                       recover();
+                                   }
                                    return null;
                                });
                    } else {
@@ -220,6 +233,40 @@ public class TableViewImpl<T> implements TableView<T> {
                 });
     }
 
+    private CompletableFuture<Reader<T>> createReaderAsync(MessageId startMessageId) {
+        return client.newReader(schema)
+                .topic(conf.getTopicName())
+                .startMessageId(startMessageId)
+                .autoUpdatePartitions(true)
+                .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
+                .readCompacted(true)
+                .poolMessages(true)
+                .createAsync()
+                .thenApply((reader) -> {
+                    isActive = true;
+                    this.reader = reader;
+                    recoveryBackoff.reset();
+                    return reader;
+                });
+    }
+
+    private void recover() {
+        try {
+            Thread.sleep(recoveryBackoff.getNext());
+        } catch (InterruptedException e) {
+            log.debug("Interrupted sleep", e);
+        }
+        MessageId startMessageId = lastMessageId == null ? MessageId.earliest : lastMessageId;
+        if (reader != null) {
+            this.readerFuture = reader
+                    .closeAsync()
+                    .thenCompose((__) -> createReaderAsync(startMessageId));
+        } else {
+            this.readerFuture = createReaderAsync(startMessageId);
+        }
+        start();
+    }
+
     private void readTailMessages() {
         reader.readNextAsync()
                 .thenAccept(msg -> {
@@ -231,6 +278,9 @@ public class TableViewImpl<T> implements TableView<T> {
                         log.warn("Reader {} was interrupted. {}", reader.getTopic(), ex.getMessage());
                     } else {
                         log.error("Reader {} was interrupted.", reader.getTopic(), ex);
+                    }
+                    if (conf.isFaultTolerant()) {
+                        recover();
                     }
                     return null;
                 });

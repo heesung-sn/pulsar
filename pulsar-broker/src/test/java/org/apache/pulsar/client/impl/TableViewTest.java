@@ -232,14 +232,16 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
 
+        // Test if the tv is inactive when the reader is closed
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         assertTrue(tv.isActive());
         Reader<String> reader = (Reader<String>) FieldUtils.readField(tv, "reader", true);
         reader.close();
         producer.newMessage().key("key1").value("value1").send();
-        waitForInActive(tv);
+        tryToWaitForInActive(tv);
         assertTrue(!tv.isActive());
 
+        // Test if the tv is inactive when the reader throws unexpected exceptions
         final TableView<String> tv2 = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
@@ -255,11 +257,25 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         FieldUtils.writeField(tv2, "reader", mockReader, true);
         producer.newMessage().key("key2").value("value2").send();
-        waitForInActive(tv2);
+        tryToWaitForInActive(tv2);
         assertTrue(!tv2.isActive());
+
+        // Test if the tv is active(recovered) when the table view is fault-tolerant and the reader is closed.
+        final TableView<String> tv3 = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .faultTolerant(true)
+                .create();
+        ((Reader<String>) FieldUtils.readField(tv3, "reader", true)).close();
+        MessageIdImpl messageId = (MessageIdImpl) FieldUtils.readField(tv3, "lastMessageId", true);
+        producer.newMessage().key("key1").value("value3").send();
+        MessageIdImpl messageId2 = tryToWaitForNewMessageId(tv3, messageId);
+        assertEquals(messageId2.getEntryId(), messageId.getEntryId()+1);
+        assertEquals(tv3.get("key1"), "value3");
+        assertTrue(tv3.isActive());
     }
 
-    private static void waitForInActive(TableView<String> tv) throws InterruptedException {
+    private static void tryToWaitForInActive(TableView<String> tv) throws InterruptedException {
         int retry = 0;
         while (tv.isActive()) {
             Thread.sleep(250);
@@ -267,5 +283,19 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 break;
             }
         }
+    }
+
+    private static MessageIdImpl tryToWaitForNewMessageId(TableView<String> tv, MessageIdImpl start)
+            throws InterruptedException, IllegalAccessException {
+        int retry = 0;
+        MessageIdImpl messageId = start;
+        while (messageId == start) {
+            Thread.sleep(250);
+            if (retry++ > 5) {
+                break;
+            }
+            messageId = (MessageIdImpl) FieldUtils.readField(tv, "lastMessageId", true);
+        }
+        return messageId;
     }
 }
