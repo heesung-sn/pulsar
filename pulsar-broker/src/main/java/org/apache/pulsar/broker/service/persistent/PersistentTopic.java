@@ -779,7 +779,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     if (subscription instanceof PersistentSubscription persistentSubscription) {
-                        checkBackloggedCursor(persistentSubscription);
+                        checkBackloggedCursors();
                     }
                     if (!cnx.isActive()) {
                         try {
