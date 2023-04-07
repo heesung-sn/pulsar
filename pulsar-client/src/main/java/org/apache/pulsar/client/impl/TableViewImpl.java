@@ -58,6 +58,8 @@ public class TableViewImpl<T> implements TableView<T> {
     private final boolean isPersistentTopic;
     private TopicCompactionStrategy<T> compactionStrategy;
 
+    private volatile boolean isConnected;
+
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
@@ -85,10 +87,12 @@ public class TableViewImpl<T> implements TableView<T> {
         readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
 
         this.reader = readerBuilder.createAsync();
+
     }
 
     CompletableFuture<TableView<T>> start() {
         return reader.thenCompose((reader) -> {
+            this.isConnected = true;
             if (!isPersistentTopic) {
                 readTailMessages(reader);
                 return CompletableFuture.completedFuture(reader);
@@ -164,7 +168,8 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return reader.thenCompose(Reader::closeAsync);
+        return reader.thenCompose(Reader::closeAsync)
+                .thenAccept(__ -> this.isConnected = false);
     }
 
     @Override
@@ -174,6 +179,11 @@ public class TableViewImpl<T> implements TableView<T> {
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
+    }
+
+    @Override
+    public boolean isConnected() {
+        return isConnected;
     }
 
     private void handleMessage(Message<T> msg) {
@@ -240,6 +250,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                   handleMessage(msg);
                                   readAllExistingMessages(reader, future, startTime, messagesRead);
                                }).exceptionally(ex -> {
+                                   isConnected = false;
                                    logException(
                                            String.format("Reader %s was interrupted while reading existing messages",
                                                    reader.getTopic()), ex);
@@ -266,6 +277,7 @@ public class TableViewImpl<T> implements TableView<T> {
                     handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
+                    this.isConnected = false;
                     logException(
                             String.format("Reader %s was interrupted while reading tail messages.",
                                     reader.getTopic()), ex);
