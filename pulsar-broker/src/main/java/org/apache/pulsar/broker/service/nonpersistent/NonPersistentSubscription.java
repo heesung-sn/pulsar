@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -305,6 +306,11 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
                 });
 
         return disconnectFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> dstBrokerLookupData) {
+        return disconnect();
     }
 
     /**

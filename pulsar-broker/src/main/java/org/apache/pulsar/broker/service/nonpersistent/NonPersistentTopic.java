@@ -480,14 +480,22 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return deleteFuture;
     }
 
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+        return close(closeWithoutWaitingClientDisconnect, false);
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
+     * @param closeWithoutDisconnectingClients don't disconnect the clients
      * @return Completable future indicating completion of close operation
      */
+
     @Override
-    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect,
+                                         boolean closeWithoutDisconnectingClients) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -504,25 +512,26 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        if (!closeWithoutDisconnectingClients) {
+            replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+            producers.values().forEach(producer -> futures.add(producer.disconnect()));
+            if (topicPublishRateLimiter != null) {
+                topicPublishRateLimiter.close();
+            }
+            subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+            if (this.resourceGroupPublishLimiter != null) {
+                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+            }
 
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.values().forEach(producer -> futures.add(producer.disconnect()));
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-        }
-
-        if (entryFilters != null) {
-            entryFilters.getRight().forEach(filter -> {
-                try {
-                    filter.close();
-                } catch (Throwable e) {
-                    log.warn("Error shutting down entry filter {}", filter, e);
-                }
-            });
+            if (entryFilters != null) {
+                entryFilters.getRight().forEach(filter -> {
+                    try {
+                        filter.close();
+                    } catch (Throwable e) {
+                        log.warn("Error shutting down entry filter {}", filter, e);
+                    }
+                });
+            }
         }
 
         CompletableFuture<Void> clientCloseFuture =

@@ -479,6 +479,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
+        return getOwnerAsync(serviceUnit, true);
+    }
+
+    public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit, boolean waitOwnership) {
         if (!validateChannelState(Started, true)) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
@@ -495,12 +499,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
-                    if (e != null) {
-                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                    }
-                }).thenApply(
-                        broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                if (waitOwnership) {
+                    return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
+                        if (e != null) {
+                            ownerLookUpCounters.get(state).getFailure().incrementAndGet();
+                        }
+                    }).thenApply(
+                            broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                } else {
+                    return CompletableFuture.completedFuture(Optional.of(data.dstBroker()));
+                }
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -581,7 +589,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     unload.force(), getNextVersionId(serviceUnit));
         } else {
             next = new ServiceUnitStateData(
-                    Releasing, null, unload.sourceBroker(), unload.force(), getNextVersionId(serviceUnit));
+                    Releasing, null, unload.sourceBroker(),
+                    unload.force(), getNextVersionId(serviceUnit));
         }
         return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
             if (ex != null) {
@@ -704,15 +713,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
             lastOwnEventHandledAt = System.currentTimeMillis();
-        } else if (data.force() && isTargetBroker(data.sourceBroker())) {
-            closeServiceUnit(serviceUnit);
+        } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
+            log(null, serviceUnit, data, null);
+            closeServiceUnit(serviceUnit, false);
         }
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.dstBroker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(
-                    Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
+                    Owned, data.dstBroker(), data.sourceBroker(), data.force(), getNextVersionId(data));
             stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -723,13 +733,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             ServiceUnitStateData next;
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
-                        Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
+                        Assigning, data.dstBroker(), data.sourceBroker(), data.force(), getNextVersionId(data));
                 // TODO: when close, pass message to clients to connect to the new broker
             } else {
                 next = new ServiceUnitStateData(
-                        Free, null, data.sourceBroker(), getNextVersionId(data));
+                        Free, null, data.sourceBroker(), data.force(), getNextVersionId(data));
             }
-            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit, true)
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -825,13 +835,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
+    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit, boolean closeWithoutDisconnectingClients) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
-                        true,
+                        true, closeWithoutDisconnectingClients,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
                 .thenApply(numUnloadedTopics -> {
@@ -839,8 +849,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     return numUnloadedTopics;
                 })
                 .whenComplete((__, ex) -> {
-                    // clean up topics that failed to unload from the broker ownership cache
-                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    if (!closeWithoutDisconnectingClients) {
+                        // clean up topics that failed to unload from the broker ownership cache
+                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    }
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
                     if (ex != null) {
@@ -907,7 +919,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .thenAccept(__ -> // Update bundled_topic cache for load-report-generation
                         pulsar.getBrokerService().refreshTopicToStatsMaps(parentBundle))
                 .thenAccept(__ -> pubAsync(parentBundle.toString(), new ServiceUnitStateData(
-                                Deleted, null, parentData.sourceBroker(), getNextVersionId(parentData))))
+                                Deleted, null, parentData.sourceBroker(), parentData.force(),
+                        getNextVersionId(parentData))))
                 .thenAccept(__ -> {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
                     log.info("Successfully split {} parent namespace-bundle to {} in {} ms",

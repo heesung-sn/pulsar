@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -57,6 +59,10 @@ public class ConnectionHandler {
     }
 
     protected void grabCnx() {
+        grabCnx(Optional.empty());
+    }
+
+    protected void grabCnx(Optional<URI> hostURI) {
         if (CLIENT_CNX_UPDATER.get(this) != null) {
             log.warn("[{}] [{}] Client cnx already set, ignoring reconnection request",
                     state.topic, state.getHandlerName());
@@ -72,7 +78,12 @@ public class ConnectionHandler {
 
         try {
             CompletableFuture<ClientCnx> cnxFuture;
-            if (state.redirectedClusterURI != null) {
+            if (hostURI.isPresent()) {
+                InetSocketAddress address = InetSocketAddress.createUnresolved(
+                        hostURI.get().getHost(),
+                        hostURI.get().getPort());
+                cnxFuture = state.client.getConnection(address, address);
+            } else if (state.redirectedClusterURI != null) {
                 InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
                         state.redirectedClusterURI.getPort());
                 cnxFuture = state.client.getConnection(address, address);
@@ -131,6 +142,10 @@ public class ConnectionHandler {
     }
 
     public void connectionClosed(ClientCnx cnx) {
+        connectionClosed(cnx, null, Optional.empty());
+    }
+
+    public void connectionClosed(ClientCnx cnx, Long initialConnectionDelayMs, Optional<URI> hostUrl) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
@@ -139,14 +154,14 @@ public class ConnectionHandler {
                         state.topic, state.getHandlerName(), state.getState());
                 return;
             }
-            long delayMs = backoff.next();
+            long delayMs = initialConnectionDelayMs != null ? initialConnectionDelayMs.longValue() : backoff.next();
             state.setState(State.Connecting);
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s",
                     state.topic, state.getHandlerName(), cnx.channel(),
                     delayMs / 1000.0);
             state.client.timer().newTimeout(timeout -> {
                 log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
-                grabCnx();
+                grabCnx(hostUrl);
             }, delayMs, TimeUnit.MILLISECONDS);
         }
     }

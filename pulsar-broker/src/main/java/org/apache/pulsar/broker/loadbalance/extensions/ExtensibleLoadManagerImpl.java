@@ -199,6 +199,23 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
+    public static Optional<BrokerLookupData> getDestinationBrokerLookupData(PulsarService pulsar,
+                                                                            String topic) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+            var topicName = TopicName.get(topic);
+            try {
+                return pulsar.getNamespaceService().getBundleAsync(topicName)
+                        .thenCompose(bundle -> ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get())
+                                .getOwnershipWithLookupDataAsync(bundle, false))
+                        .get(5, TimeUnit.SECONDS);
+            } catch (Throwable e) {
+                log.error("Failed to DestinationBrokerLookupData for topic:{}", topic, e);
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
     public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
         return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
     }
@@ -446,18 +463,29 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     public CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
                                                                  ServiceUnitId bundleUnit) {
+        return getOwnershipAsync(topic, bundleUnit, true);
+    }
+    public CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
+                                                                 ServiceUnitId bundleUnit,
+                                                                 boolean waitForOwnership) {
         final String bundle = bundleUnit.toString();
         CompletableFuture<Optional<String>> owner;
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
             owner = serviceUnitStateChannel.getChannelOwnerAsync();
         } else {
-            owner = serviceUnitStateChannel.getOwnerAsync(bundle);
+            owner = serviceUnitStateChannel.getOwnerAsync(bundle, waitForOwnership);
         }
         return owner;
     }
 
     public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit) {
-        return getOwnershipAsync(Optional.empty(), bundleUnit).thenCompose(broker -> {
+
+        return getOwnershipWithLookupDataAsync(bundleUnit, true);
+    }
+
+    public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit,
+                                                                                         boolean waitForOwnership) {
+        return getOwnershipAsync(Optional.empty(), bundleUnit, waitForOwnership).thenCompose(broker -> {
             if (broker.isEmpty()) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }

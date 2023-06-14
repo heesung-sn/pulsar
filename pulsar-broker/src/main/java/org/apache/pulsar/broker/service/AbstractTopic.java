@@ -97,7 +97,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-    protected volatile boolean isFenced;
+    protected volatile boolean isFenced; // TODO: add hitCount for fenced pub
 
     protected final HierarchyTopicPolicies topicPolicies;
 
@@ -961,6 +961,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
         }
+    }
+
+    public boolean isFenced() {
+        return isFenced;
     }
 
     protected void checkTopicFenced() throws BrokerServiceException {

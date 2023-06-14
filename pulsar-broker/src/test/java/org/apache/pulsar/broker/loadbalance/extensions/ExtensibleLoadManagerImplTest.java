@@ -309,6 +309,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
         checkOwnershipState(broker, bundle);
 
+        var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
+
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);

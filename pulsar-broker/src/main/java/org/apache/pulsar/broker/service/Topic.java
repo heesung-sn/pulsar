@@ -195,6 +195,8 @@ public interface Topic {
     CompletableFuture<Void> checkReplication();
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
+    CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect,
+                                  boolean closeWithoutDisconnectingClients);
 
     void checkGC();
 
@@ -328,6 +330,8 @@ public interface Topic {
     }
 
     boolean isPersistent();
+
+    boolean isFenced();
 
     /* ------ Transaction related ------ */
 

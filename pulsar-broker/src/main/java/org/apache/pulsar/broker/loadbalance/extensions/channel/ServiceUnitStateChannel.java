@@ -131,6 +131,8 @@ public interface ServiceUnitStateChannel extends Closeable {
      */
     CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
+    CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit, boolean waitForOwnership);
+
     /**
      * Checks if the target broker is the owner of the service unit.
      *

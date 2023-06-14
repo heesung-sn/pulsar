@@ -100,6 +100,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -2154,8 +2155,11 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
-            boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
-        CompletableFuture<Integer> future = unloadServiceUnit(serviceUnit, closeWithoutWaitingClientDisconnect);
+                                                        boolean closeWithoutWaitingClientDisconnect,
+                                                        boolean closeWithoutDisconnectingClients,
+                                                        long timeout, TimeUnit unit) {
+        CompletableFuture<Integer> future =
+                unloadServiceUnit(serviceUnit, closeWithoutWaitingClientDisconnect, closeWithoutDisconnectingClients);
         ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
             if (!future.isDone()) {
                 log.warn("Unloading of {} has timed out", serviceUnit);
@@ -2177,7 +2181,8 @@ public class BrokerService implements Closeable {
      * @return
      */
     private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
-                                                         boolean closeWithoutWaitingClientDisconnect) {
+                                                         boolean closeWithoutWaitingClientDisconnect,
+                                                         boolean closeWithoutDisconnectingClients) {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         topics.forEach((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
@@ -2185,7 +2190,8 @@ public class BrokerService implements Closeable {
                 // Topic needs to be unloaded
                 log.info("[{}] Unloading topic", topicName);
                 closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect)
+                        .thenCompose(t -> t.isPresent()
+                                ? t.get().close(closeWithoutWaitingClientDisconnect, closeWithoutDisconnectingClients)
                                 : CompletableFuture.completedFuture(null)));
             }
         });
@@ -3295,6 +3301,7 @@ public class BrokerService implements Closeable {
                     topicName.getNamespaceObject());
             return CompletableFuture.completedFuture(false);
         }
+
         //System topic can always be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);

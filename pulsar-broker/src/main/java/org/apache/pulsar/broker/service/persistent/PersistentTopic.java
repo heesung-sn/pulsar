@@ -82,8 +82,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -1424,17 +1426,24 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     public CompletableFuture<Void> close() {
-        return close(false);
+        return close(false, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+        return close(closeWithoutWaitingClientDisconnect, false);
     }
 
     /**
      * Close this topic - close all producers and subscriptions associated with this topic.
      *
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
+     * @param closeWithoutDisconnectingClients don't disconnect the clients
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect,
+                                          boolean closeWithoutDisconnectingClients) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -1453,28 +1462,35 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
-        producers.values().forEach(producer -> futures.add(producer.disconnect()));
-        if (topicPublishRateLimiter != null) {
-            topicPublishRateLimiter.close();
-        }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
-        if (this.resourceGroupPublishLimiter != null) {
-            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
-        }
 
-        //close entry filters
-        if (entryFilters != null) {
-            entryFilters.getRight().forEach((filter) -> {
-                try {
-                    filter.close();
-                } catch (Throwable e) {
-                    log.warn("Error shutting down entry filter {}", filter, e);
-                }
-            });
+        if (!closeWithoutDisconnectingClients) {
+            var config = brokerService.getPulsar().getConfiguration();
+            Optional<BrokerLookupData> dstBrokerLookupData = config.isLoadBalancerTransferEnabled() ?
+                    ExtensibleLoadManagerImpl.getDestinationBrokerLookupData(
+                            brokerService.getPulsar(), topic) : Optional.empty();
+            producers.values().forEach(producer -> futures.add(producer.disconnect(dstBrokerLookupData))); //freeze
+
+            if (topicPublishRateLimiter != null) {
+                topicPublishRateLimiter.close();
+            }
+            subscriptions.forEach((s, sub) -> futures.add(sub.disconnect())); // freeze
+            if (this.resourceGroupPublishLimiter != null) {
+                this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+            }
+
+            //close entry filters
+            if (entryFilters != null) {
+                entryFilters.getRight().forEach((filter) -> {
+                    try {
+                        filter.close();
+                    } catch (Throwable e) {
+                        log.warn("Error shutting down entry filter {}", filter, e);
+                    }
+                });
+            }
         }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
@@ -1487,13 +1503,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    disposeTopic(closeFuture);
+                    if (!closeWithoutDisconnectingClients) {
+                        disposeTopic(closeFuture);
+                    } else {
+                        closeFuture.complete(null);
+                    }
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    disposeTopic(closeFuture);
+                    if (!closeWithoutDisconnectingClients) {
+                        disposeTopic(closeFuture);
+                    } else {
+                        closeFuture.complete(null);
+                    }
                 }
             }, null);
         }).exceptionally(exception -> {
@@ -1616,7 +1640,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         return FutureUtil.waitForAll(futures);
     }
-
     private CompletableFuture<Void> checkShadowReplication() {
         if (CollectionUtils.isEmpty(shadowTopics)) {
             return CompletableFuture.completedFuture(null);

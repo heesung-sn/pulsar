@@ -80,6 +80,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.limiter.ConnectionController;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -1631,7 +1633,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             log.info("client doesn't support topic migration handling {}-{}-{}", topic,
                                     remoteAddress, producerId);
                         }
-                        closeProducer(producer);
+                        closeProducer(producer, Optional.empty());
                         return null;
                     }
                 } else {
@@ -1655,7 +1657,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             return null;
         });
-
         producerQueuedFuture.thenRun(() -> {
             // If the producer is queued waiting, we will get an immediate notification
             // that we need to pass to client
@@ -1695,6 +1696,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Producer producer = producerFuture.getNow(null);
         if (log.isDebugEnabled()) {
             printSendCommandDebug(send, headersAndPayload);
+        }
+
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(getBrokerService().pulsar().getConfiguration())
+                && producer.getTopic().isFenced()) {
+            log.info("[{}] Received message, but the topic is fenced: {}. Ignoring message.",
+                    remoteAddress, send.getProducerId());
+            return;
         }
 
         if (producer.isNonPersistentTopic()) {
@@ -2932,11 +2940,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    public void closeProducer(Producer producer) {
+    public void closeProducer(Producer producer, Optional<BrokerLookupData> dstBrokerLookupData) {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            if (dstBrokerLookupData.isPresent()) {
+                var urls = dstBrokerLookupData.get();
+                writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L,
+                        urls.getPulsarServiceUrl(), urls.getPulsarServiceUrlTls()));
+            } else {
+                writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            }
             // The client does not necessarily know that the producer is closed, but the connection is still
             // active, and there could be messages in flight already. We want to ignore these messages for a time
             // because they are expected. Once the interval has passed, the client should have received the

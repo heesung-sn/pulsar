@@ -33,6 +33,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
@@ -800,11 +802,28 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
-        log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
+
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
-            producer.connectionClosed(this);
+            if (closeProducer.hasBrokerServiceUrl() && closeProducer.hasBrokerServiceUrlTls()) {
+                try {
+                    final URI uri = new URI(producer.client.conf.isUseTls()
+                            ? closeProducer.getBrokerServiceUrlTls() : closeProducer.getBrokerServiceUrl());
+                    log.info("[{}] Broker notification of Closed producer: {}. Redirecting to {}.",
+                            remoteAddress, closeProducer.getProducerId(), uri);
+                    producer.getConnectionHandler().connectionClosed(this, 0L, Optional.of(uri));
+                } catch (URISyntaxException e) {
+                    log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress,
+                            closeProducer.getBrokerServiceUrl(), closeProducer.getBrokerServiceUrlTls(),
+                            closeProducer.getRequestId());
+                }
+            } else {
+                log.info("[{}] Broker notification of Closed producer: {}.",
+                        remoteAddress, closeProducer.getProducerId());
+                producer.connectionClosed(this);
+            }
+
         } else {
             log.warn("Producer with id {} not found while closing producer ", producerId);
         }
@@ -812,11 +831,27 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
-        log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
+
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
-            consumer.connectionClosed(this);
+            if (closeConsumer.hasBrokerServiceUrl() && closeConsumer.hasBrokerServiceUrlTls()) {
+                try {
+                    final URI uri = new URI(consumer.client.conf.isUseTls()
+                            ? closeConsumer.getBrokerServiceUrlTls() : closeConsumer.getBrokerServiceUrl());
+                    log.info("[{}] Broker notification of Closed consumer: {}. Redirecting to {}.",
+                            remoteAddress, closeConsumer.getConsumerId(), uri);
+                    consumer.getConnectionHandler().connectionClosed(this, 0L, Optional.of(uri));
+                } catch (URISyntaxException e) {
+                    log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress,
+                            closeConsumer.getBrokerServiceUrl(), closeConsumer.getBrokerServiceUrlTls(),
+                            closeConsumer.getRequestId());
+                }
+            } else {
+                log.info("[{}] Broker notification of Closed consumer: {}",
+                        remoteAddress, closeConsumer.getConsumerId());
+                consumer.connectionClosed(this);
+            }
         } else {
             log.warn("Consumer with id {} not found while closing consumer ", consumerId);
         }

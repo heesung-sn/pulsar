@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndAp
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import io.etcd.jetcd.op.Op;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -57,6 +58,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -886,6 +888,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      */
     @Override
     public synchronized CompletableFuture<Void> disconnect() {
+        return disconnect(Optional.empty());
+    }
+
+    /**
+     * Disconnect all consumers attached to the dispatcher and close this subscription.
+     *
+     * @return CompletableFuture indicating the completion of disconnect operation
+     */
+    @Override
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> dstBrokerLookupData) {
         if (fenceFuture != null){
             return fenceFuture;
         }
