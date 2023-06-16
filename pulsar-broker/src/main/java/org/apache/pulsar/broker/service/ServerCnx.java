@@ -2965,15 +2965,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             close();
         }
-
     }
 
     @Override
-    public void closeConsumer(Consumer consumer) {
+    public void closeConsumer(Consumer consumer, Optional<BrokerLookupData> dstBrokerLookupData) {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            if (dstBrokerLookupData.isPresent()) {
+                var urls = dstBrokerLookupData.get();
+                writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L,
+                        urls.getPulsarServiceUrl(), urls.getPulsarServiceUrlTls()));
+            } else {
+                writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            }
         } else {
             close();
         }

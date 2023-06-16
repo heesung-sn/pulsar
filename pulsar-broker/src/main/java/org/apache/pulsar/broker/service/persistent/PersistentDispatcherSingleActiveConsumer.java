@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -564,9 +565,18 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public CompletableFuture<Void> close() {
+        return close(false, Optional.empty());
+    }
+
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                         Optional<BrokerLookupData> dstBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-        return disconnectAllConsumers();
+        if (closeWithoutDisconnectingConsumers) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return disconnectAllConsumers(closeWithoutDisconnectingConsumers, dstBrokerLookupData);
     }
 
     @Override

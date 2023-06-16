@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -483,8 +484,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return consumerList.size() == 1 && consumerSet.contains(consumer);
     }
 
-    @Override
     public CompletableFuture<Void> close() {
+        return close(false, Optional.empty());
+    }
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                         Optional<BrokerLookupData> dstBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
 
         Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
@@ -497,16 +502,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectAllConsumers();
+        if (closeWithoutDisconnectingConsumers) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return disconnectAllConsumers(false, dstBrokerLookupData);
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                                       Optional<BrokerLookupData> dstBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
-            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor, dstBrokerLookupData));
             cancelPendingRead();
         }
         return closeFuture;
@@ -521,7 +530,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
-        return disconnectAllConsumers(isResetCursor);
+        return disconnectAllConsumers(isResetCursor, Optional.empty());
     }
 
     @Override

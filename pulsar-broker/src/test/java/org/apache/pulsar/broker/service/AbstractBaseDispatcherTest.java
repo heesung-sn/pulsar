@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -284,6 +285,12 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
+        public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                             Optional<BrokerLookupData> dstBrokerLookupData) {
+            return null;
+        }
+
+        @Override
         public boolean isClosed() {
             return false;
         }
@@ -294,7 +301,8 @@ public class AbstractBaseDispatcherTest {
         }
 
         @Override
-        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                              Optional<BrokerLookupData> dstBrokerLookupData) {
             return null;
         }
 

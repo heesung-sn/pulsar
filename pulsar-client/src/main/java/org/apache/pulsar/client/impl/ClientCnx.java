@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
@@ -806,7 +805,7 @@ public class ClientCnx extends PulsarHandler {
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
-            if (closeProducer.hasBrokerServiceUrl() && closeProducer.hasBrokerServiceUrlTls()) {
+            if (closeProducer.hasBrokerServiceUrl() || closeProducer.hasBrokerServiceUrlTls()) {
                 try {
                     final URI uri = new URI(producer.client.conf.isUseTls()
                             ? closeProducer.getBrokerServiceUrlTls() : closeProducer.getBrokerServiceUrl());
@@ -835,7 +834,7 @@ public class ClientCnx extends PulsarHandler {
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
-            if (closeConsumer.hasBrokerServiceUrl() && closeConsumer.hasBrokerServiceUrlTls()) {
+            if (closeConsumer.hasBrokerServiceUrl() || closeConsumer.hasBrokerServiceUrlTls()) {
                 try {
                     final URI uri = new URI(consumer.client.conf.isUseTls()
                             ? closeConsumer.getBrokerServiceUrlTls() : closeConsumer.getBrokerServiceUrl());

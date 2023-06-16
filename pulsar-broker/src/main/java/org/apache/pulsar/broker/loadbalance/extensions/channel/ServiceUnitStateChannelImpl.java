@@ -168,7 +168,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static class Counters {
         private final AtomicLong total;
         private final AtomicLong failure;
-        public Counters(){
+
+        public Counters() {
             total = new AtomicLong();
             failure = new AtomicLong();
         }
@@ -188,6 +189,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ChannelState(int id) {
             this.id = id;
         }
+
         int id;
     }
 
@@ -558,8 +560,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<Void> publishOverrideEventAsync(String serviceUnit,
-                                           ServiceUnitStateData orphanData,
-                                           ServiceUnitStateData override) {
+                                                              ServiceUnitStateData orphanData,
+                                                              ServiceUnitStateData override) {
         if (!validateChannelState(Started, true)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
@@ -636,7 +638,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 case Init -> handleInitEvent(serviceUnit);
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
-        } catch (Throwable e){
+        } catch (Throwable e) {
             log.error("Failed to handle the event. serviceUnit:{}, data:{}, handlerFailureCount:{}",
                     serviceUnit, data, getHandlerFailureCounter(data).incrementAndGet(), e);
             throw e;
@@ -709,14 +711,24 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.dstBroker());
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (isTargetBroker(data.dstBroker())) {
-            log(null, serviceUnit, data, null);
             lastOwnEventHandledAt = System.currentTimeMillis();
-        } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
             log(null, serviceUnit, data, null);
-            closeServiceUnit(serviceUnit, false);
+            future.complete(null);
+        } else if ((data.force() || isTransferCommand(data)) && isTargetBroker(data.sourceBroker())) {
+            closeServiceUnit(serviceUnit, false)
+                    .whenComplete((__, e) -> {
+                        log(null, serviceUnit, data, null);
+                        future.complete(null);
+                    });
+        } else {
+            future.complete(null);
         }
+
+        future.whenComplete((__, e) -> stateChangeListeners.notify(serviceUnit, data, null));
+
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
@@ -899,7 +911,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
 
-
     @VisibleForTesting
     protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
                                                 NamespaceBundleFactory bundleFactory,
@@ -919,7 +930,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .thenAccept(__ -> // Update bundled_topic cache for load-report-generation
                         pulsar.getBrokerService().refreshTopicToStatsMaps(parentBundle))
                 .thenAccept(__ -> pubAsync(parentBundle.toString(), new ServiceUnitStateData(
-                                Deleted, null, parentData.sourceBroker(), parentData.force(),
+                        Deleted, null, parentData.sourceBroker(), parentData.force(),
                         getNextVersionId(parentData))))
                 .thenAccept(__ -> {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
@@ -935,7 +946,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
                                 counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
                         pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(
-                                namespaceService, bundleFactory, algorithm, parentBundle, childBundles,
+                                        namespaceService, bundleFactory, algorithm, parentBundle, childBundles,
                                         boundaries, parentData, counter, startTime, completionFuture),
                                 100, MILLISECONDS);
                     } else {
@@ -1202,7 +1213,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private synchronized void doCleanup(String broker)  {
+    private synchronized void doCleanup(String broker) {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;

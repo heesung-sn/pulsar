@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -127,8 +129,18 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
 
     @Override
     public CompletableFuture<Void> close() {
+        return close(false, Optional.empty());
+    }
+
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                         Optional<BrokerLookupData> dstBrokerLookupData) {
+
         IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers();
+        if (closeWithoutDisconnectingConsumers) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return disconnectAllConsumers(false, dstBrokerLookupData);
     }
 
     @Override
@@ -147,19 +159,20 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     }
 
     @Override
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                                       Optional<BrokerLookupData> dstBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
         if (consumerList.isEmpty()) {
             closeFuture.complete(null);
         } else {
-            consumerList.forEach(Consumer::disconnect);
+            consumerList.forEach(consumer -> consumer.disconnect(isResetCursor, dstBrokerLookupData));
         }
         return closeFuture;
     }
 
     @Override
     public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
-        return disconnectAllConsumers(isResetCursor);
+        return disconnectAllConsumers(isResetCursor, Optional.empty());
     }
 
     @Override

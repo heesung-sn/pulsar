@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -51,6 +52,9 @@ public interface Dispatcher {
      */
     CompletableFuture<Void> close();
 
+    CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                  Optional<BrokerLookupData> dstBrokerLookupData);
+
     boolean isClosed();
 
     /**
@@ -63,10 +67,11 @@ public interface Dispatcher {
      *
      * @return
      */
-    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                   Optional<BrokerLookupData> dstBrokerLookupData);
 
     default CompletableFuture<Void> disconnectAllConsumers() {
-        return disconnectAllConsumers(false);
+        return disconnectAllConsumers(false, Optional.empty());
     }
 
     void resetCloseFuture();

@@ -66,13 +66,16 @@ public interface Subscription {
     List<Consumer> getConsumers();
 
     CompletableFuture<Void> close();
+    CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers);
 
     CompletableFuture<Void> delete();
 
     CompletableFuture<Void> deleteForcefully();
 
     CompletableFuture<Void> disconnect();
-    CompletableFuture<Void> disconnect(Optional<BrokerLookupData> dstBrokerLookupData);
+
+    CompletableFuture<Void> disconnect(boolean closeWithoutDisconnectingConsumers,
+                                       Optional<BrokerLookupData> dstBrokerLookupData);
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
 

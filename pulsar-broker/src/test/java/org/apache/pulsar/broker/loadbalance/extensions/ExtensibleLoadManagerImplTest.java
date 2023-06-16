@@ -309,8 +309,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
         checkOwnershipState(broker, bundle);
 
+        var consumer = pulsarClient.newConsumer().topic(topicName.toString())
+                .subscriptionName("my-sub").subscribe();
         var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
 
+        int msgCnt = 5;
+        for (int i = 0; i < msgCnt; i++) {
+            producer.sendAsync(("" + i).getBytes());
+        }
+
+        log.info("Start testing!");
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
 
         assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
@@ -322,6 +330,11 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (PulsarAdminException ex) {
             assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
+        }
+
+        for (int i = 0; i < msgCnt; i++) {
+            var msg = consumer.receive(2, TimeUnit.SECONDS);
+            assertEquals(("" + i).getBytes(), msg.getValue());
         }
     }
 

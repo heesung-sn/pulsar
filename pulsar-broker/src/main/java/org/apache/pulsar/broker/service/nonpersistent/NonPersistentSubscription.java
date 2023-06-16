@@ -278,6 +278,11 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers) {
+        return close();
+    }
+
     /**
      * Disconnect all consumers attached to the dispatcher and close this subscription.
      *
@@ -285,12 +290,19 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
      */
     @Override
     public synchronized CompletableFuture<Void> disconnect() {
+        return disconnect(false, Optional.empty());
+    }
+
+    @Override
+    public CompletableFuture<Void> disconnect(boolean closeWithoutDisconnectingConsumers,
+                                              Optional<BrokerLookupData> dstBrokerLookupData) {
         CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenCompose(v -> close())
+        (dispatcher != null ? dispatcher.close(closeWithoutDisconnectingConsumers, dstBrokerLookupData) :
+                CompletableFuture.completedFuture(null)).thenCompose(v -> close())
                 .thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     disconnectFuture.complete(null);
@@ -306,11 +318,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
                 });
 
         return disconnectFuture;
-    }
-
-    @Override
-    public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> dstBrokerLookupData) {
-        return disconnect();
     }
 
     /**

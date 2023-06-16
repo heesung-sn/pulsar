@@ -1465,18 +1465,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
-
+        var config = brokerService.getPulsar().getConfiguration();
+        Optional<BrokerLookupData> dstBrokerLookupData = config.isLoadBalancerTransferEnabled()
+                ? ExtensibleLoadManagerImpl.getDestinationBrokerLookupData(brokerService.getPulsar(), topic) :
+                Optional.empty();
+        subscriptions.forEach((s, sub) -> futures.add(
+                sub.disconnect(closeWithoutDisconnectingClients, dstBrokerLookupData))); // freeze
         if (!closeWithoutDisconnectingClients) {
-            var config = brokerService.getPulsar().getConfiguration();
-            Optional<BrokerLookupData> dstBrokerLookupData = config.isLoadBalancerTransferEnabled() ?
-                    ExtensibleLoadManagerImpl.getDestinationBrokerLookupData(
-                            brokerService.getPulsar(), topic) : Optional.empty();
             producers.values().forEach(producer -> futures.add(producer.disconnect(dstBrokerLookupData))); //freeze
 
             if (topicPublishRateLimiter != null) {
                 topicPublishRateLimiter.close();
             }
-            subscriptions.forEach((s, sub) -> futures.add(sub.disconnect())); // freeze
             if (this.resourceGroupPublishLimiter != null) {
                 this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
             }

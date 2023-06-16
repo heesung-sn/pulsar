@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.client.impl.Murmur3Hash32;
@@ -243,8 +245,16 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public CompletableFuture<Void> close() {
+        return close(false, Optional.empty());
+    }
+
+    public CompletableFuture<Void> close(boolean closeWithoutDisconnectingConsumers,
+                                         Optional<BrokerLookupData> dstBrokerLookupData) {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        return disconnectAllConsumers();
+        if (closeWithoutDisconnectingConsumers) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return disconnectAllConsumers(false, dstBrokerLookupData);
     }
 
     public boolean isClosed() {
@@ -257,11 +267,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      *
      * @return
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                                       Optional<BrokerLookupData> dstBrokerLookupData) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor, dstBrokerLookupData));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately
@@ -273,7 +284,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     public synchronized CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
         if (activeConsumer != null) {
-            activeConsumer.disconnect(isResetCursor);
+            activeConsumer.disconnect(isResetCursor, Optional.empty());
         }
         closeFuture.complete(null);
         return closeFuture;

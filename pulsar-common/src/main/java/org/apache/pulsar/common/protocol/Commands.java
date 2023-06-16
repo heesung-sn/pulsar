@@ -60,6 +60,7 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
+import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
@@ -738,10 +739,24 @@ public class Commands {
     }
 
     public static ByteBuf newCloseConsumer(long consumerId, long requestId) {
+        return newCloseConsumer(consumerId, requestId, null, null);
+    }
+
+    public static ByteBuf newCloseConsumer(long consumerId, long requestId,
+                                           String brokerUrl, String brokerUrlTls) {
         BaseCommand cmd = localCmd(Type.CLOSE_CONSUMER);
-        cmd.setCloseConsumer()
-            .setConsumerId(consumerId)
-            .setRequestId(requestId);
+        CommandCloseConsumer closeConsumer = cmd.setCloseConsumer()
+                .setConsumerId(consumerId)
+                .setRequestId(requestId);
+
+        if (brokerUrl != null) {
+            closeConsumer.setBrokerServiceUrl(brokerUrl);
+        }
+
+        if (brokerUrlTls != null) {
+            closeConsumer.setBrokerServiceUrlTls(brokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 
@@ -772,10 +787,13 @@ public class Commands {
         CommandCloseProducer commandCloseProducer = cmd.setCloseProducer()
                 .setProducerId(producerId)
                 .setRequestId(requestId);
-        if (brokerUrl != null && brokerUrlTls != null) {
-            commandCloseProducer.setBrokerServiceUrl(brokerUrl)
-                    .setBrokerServiceUrlTls(brokerUrlTls);
+        if (brokerUrl != null) {
+            commandCloseProducer.setBrokerServiceUrl(brokerUrl);
         }
+        if (brokerUrlTls != null) {
+            commandCloseProducer.setBrokerServiceUrlTls(brokerUrlTls);
+        }
+
         return serializeWithSize(cmd);
     }
 
