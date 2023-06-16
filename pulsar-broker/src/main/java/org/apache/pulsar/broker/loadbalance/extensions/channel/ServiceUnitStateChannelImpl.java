@@ -110,7 +110,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
 
-    private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
+    private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 120 * 1000; // 2 mins
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
     private static final int OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS = 3000;
     public static final long VERSION_ID_INIT = 1; // initial versionId
@@ -264,7 +264,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public void cleanOwnerships() {
-        doCleanup(lookupServiceAddress);
+        doCleanup(lookupServiceAddress, true);
     }
 
     public synchronized void start() throws PulsarServerException {
@@ -1126,7 +1126,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return CompletableFuture
                     .runAsync(() -> {
                                 try {
-                                    doCleanup(broker);
+                                    doCleanup(broker, false);
                                 } catch (Throwable e) {
                                     log.error("Failed to run the cleanup job for the broker {}, "
                                                     + "totalCleanupErrorCnt:{}.",
@@ -1145,22 +1145,29 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
                                                                     String selectedBroker,
-                                                                    String inactiveBroker) {
+                                                                    String inactiveBroker,
+                                                                    boolean isGraceful) {
         if (orphanData.state() == Splitting) {
             return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
                     Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
                     true, getNextVersionId(orphanData));
         } else {
-            return new ServiceUnitStateData(Owned, selectedBroker, inactiveBroker,
-                    true, getNextVersionId(orphanData));
+            if (isGraceful) {
+                return new ServiceUnitStateData(Releasing, selectedBroker, inactiveBroker,
+                        true, getNextVersionId(orphanData));
+            } else {
+                return new ServiceUnitStateData(Owned, selectedBroker, inactiveBroker,
+                        true, getNextVersionId(orphanData));
+            }
         }
     }
 
-    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, String inactiveBroker) {
+    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, String inactiveBroker,
+                                   boolean isGraceful) {
         Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
         if (selectedBroker.isPresent()) {
             var override = getOverrideInactiveBrokerStateData(
-                    orphanData, selectedBroker.get(), inactiveBroker);
+                    orphanData, selectedBroker.get(), inactiveBroker, isGraceful);
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
             publishOverrideEventAsync(serviceUnit, orphanData, override)
@@ -1213,7 +1220,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private synchronized void doCleanup(String broker) {
+    private synchronized void doCleanup(String broker, boolean isGraceful) {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
@@ -1229,7 +1236,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                         orphanSystemServiceUnits.put(serviceUnit, stateData);
                     } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
+                        overrideOwnership(serviceUnit, stateData, broker, isGraceful);
                     }
                     orphanServiceUnitCleanupCnt++;
                 }
@@ -1239,7 +1246,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                         orphanSystemServiceUnits.put(serviceUnit, stateData);
                     } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
+                        overrideOwnership(serviceUnit, stateData, broker, isGraceful);
                     }
                     orphanServiceUnitCleanupCnt++;
                 }
@@ -1267,7 +1274,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // clean system bundles in the end
         for (var orphanSystemServiceUnit : orphanSystemServiceUnits.entrySet()) {
             log.info("Overriding orphan system service unit:{}", orphanSystemServiceUnit.getKey());
-            overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker);
+            overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker, isGraceful);
         }
 
         try {
