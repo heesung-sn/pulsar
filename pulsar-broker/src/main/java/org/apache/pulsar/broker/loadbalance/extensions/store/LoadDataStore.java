@@ -103,4 +103,9 @@ public interface LoadDataStore<T> extends Closeable {
      */
     void startProducer() throws LoadDataStoreException;
 
+    /**
+     * Check if this store is connected.
+     */
+    boolean isConnected();
+
 }

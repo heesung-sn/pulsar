@@ -129,6 +129,17 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
     }
 
     @Override
+    public boolean isConnected() {
+        if (producer != null) {
+            return producer.isConnected();
+        }
+
+        // TODO: Currently, table view does not expose isConnected.
+        // Consider adding tableview.isConnected() in the future
+        return tableView != null;
+    }
+
+    @Override
     public void close() throws IOException {
         if (producer != null) {
             producer.close();

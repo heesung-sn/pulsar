@@ -109,6 +109,11 @@ public class BrokerFilterTestBase {
             public void startProducer() throws LoadDataStoreException {
 
             }
+
+            @Override
+            public boolean isConnected() {
+                return true;
+            }
         };
         configuration.setPreferLaterVersions(true);
         doReturn(configuration).when(mockContext).brokerConfiguration();

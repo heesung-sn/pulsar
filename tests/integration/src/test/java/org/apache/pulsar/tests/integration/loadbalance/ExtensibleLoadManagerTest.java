@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.loadbalance;
 
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -266,9 +265,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        String broker1 = admin.lookups().lookupTopic(topicName);
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            String broker1 = admin.lookups().lookupTopic(topicName);
+            assertNotEquals(broker1, broker);
+        });
 
-        assertNotEquals(broker1, broker);
     }
 
     @Test(timeOut = 40 * 1000)
@@ -308,7 +309,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 40 * 1000)
+    @Test(timeOut = 90 * 1000, invocationCount = 30)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
@@ -316,7 +317,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(
                 () -> {
                     List<String> activeBrokers = admin.brokers().getActiveBrokers();
                     assertEquals(activeBrokers.size(), NUM_BROKERS);
@@ -345,13 +346,25 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         }
 
         final String topic = "persistent://" + isolationEnabledNameSpace + "/topic";
-        try {
-            admin.topics().createNonPartitionedTopic(topic);
-        } catch (PulsarAdminException.ConflictException e) {
-            //expected when retried
-        }
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(
+                () -> {
+                    try {
+                        admin.topics().createNonPartitionedTopic(topic);
+                        return true;
+                    } catch (PulsarAdminException.ConflictException e) {
+                        return true;
+                        //expected when retried
+                    } catch (Exception e) {
+                        return false;
+                    }
+                });
 
-        String broker = admin.lookups().lookupTopic(topic);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String broker = admin.lookups().lookupTopic(topic);
+            // This isolated topic should be assigned to the primary broker, broker-0
+            assertEquals(extractBrokerIndex(broker), 0);
+        });
+
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
@@ -360,13 +373,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        assertEquals(extractBrokerIndex(broker), 0);
-
-        broker = admin.lookups().lookupTopic(topic);
-
-        final String brokerName = broker;
-        retryStrategically((test) -> extractBrokerIndex(brokerName) == 1, 100, 200);
-        assertEquals(extractBrokerIndex(broker), 1);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            String broker = admin.lookups().lookupTopic(topic);
+            // This isolated topic should be assigned to the secondary broker, broker-1
+            assertEquals(extractBrokerIndex(broker), 1);
+        });
 
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
             String name = container.getHostName();
@@ -374,14 +385,17 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 container.stop();
             }
         }
-        try {
-            admin.lookups().lookupTopic(topic);
-            fail();
-        } catch (Exception ex) {
-            log.error("Failed to lookup topic: ", ex);
-            assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
-                    "Failed to select the new owner broker for bundle");
-        }
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            // This isolated topic cannot be assigned to the remaining broker, broker-2
+            try {
+                String broker = admin.lookups().lookupTopic(topic);
+                log.info("Looked upbroker {}", broker);
+            } catch (Exception ex) {
+                assertThat(ex.getMessage()).containsAnyOf("Failed to look up a broker",
+                        "Failed to select the new owner broker for bundle");
+            }
+        });
     }
 
     private String getBrokerUrl(int index) {

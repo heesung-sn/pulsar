@@ -402,6 +402,11 @@ public class TransferShedderTest {
             public void startProducer() throws LoadDataStoreException {
 
             }
+
+            @Override
+            public boolean isConnected() {
+                return true;
+            }
         };
 
         var topBundleLoadDataStore = new LoadDataStore<TopBundlesLoadData>() {
@@ -469,6 +474,11 @@ public class TransferShedderTest {
             @Override
             public void startProducer() throws LoadDataStoreException {
 
+            }
+
+            @Override
+            public boolean isConnected() {
+                return true;
             }
         };
 

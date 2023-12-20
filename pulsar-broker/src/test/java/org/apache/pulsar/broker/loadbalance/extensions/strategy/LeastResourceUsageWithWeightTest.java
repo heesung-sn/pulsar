@@ -271,6 +271,11 @@ public class LeastResourceUsageWithWeightTest {
             public void startProducer() throws LoadDataStoreException {
 
             }
+
+            @Override
+            public boolean isConnected() {
+                return true;
+            }
         };
 
         doReturn(conf).when(ctx).brokerConfiguration();

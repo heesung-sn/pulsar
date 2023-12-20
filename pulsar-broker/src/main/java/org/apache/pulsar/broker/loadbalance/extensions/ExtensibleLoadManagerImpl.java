@@ -504,6 +504,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 });
             }
             assignCounter.incrementSkip();
+
+            if (debug(conf, log)) {
+                log.info("Found the owner: {}.", broker.get());
+            }
             // Already assigned, return it.
             return CompletableFuture.completedFuture(broker.get());
         });
@@ -887,19 +891,40 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             // Monitor role
             // Periodically check the role in case ZK watcher fails.
             var isChannelOwner = serviceUnitStateChannel.isChannelOwner();
+
             if (isChannelOwner) {
                 if (role != Leader) {
                     log.warn("Current role:{} does not match with the channel ownership:{}. "
                             + "Playing the leader role.", role, isChannelOwner);
                     playLeader();
+                } else {
+                    if (!topBundlesLoadDataStore.isConnected()) {
+                        log.warn("Leader's  topBundlesLoadDataStore is disconnected. Restarting it.");
+                        topBundlesLoadDataStore.init();
+                    }
+                    if (!brokerLoadDataStore.isConnected()) {
+                        log.warn("Leader's  brokerLoadDataStore is disconnected. Restarting it.");
+                        brokerLoadDataStore.init();
+                    }
                 }
             } else {
                 if (role != Follower) {
                     log.warn("Current role:{} does not match with the channel ownership:{}. "
                             + "Playing the follower role.", role, isChannelOwner);
                     playFollower();
+                } else {
+                    if (!topBundlesLoadDataStore.isConnected()) {
+                        log.warn("Follower's  topBundlesLoadDataStore is disconnected. Restarting it.");
+                        topBundlesLoadDataStore.close();
+                        topBundlesLoadDataStore.startProducer();
+                    }
+                    if (!brokerLoadDataStore.isConnected()) {
+                        log.warn("Follower's  brokerLoadDataStore is disconnected. Restarting it.");
+                        brokerLoadDataStore.init();
+                    }
                 }
             }
+
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
