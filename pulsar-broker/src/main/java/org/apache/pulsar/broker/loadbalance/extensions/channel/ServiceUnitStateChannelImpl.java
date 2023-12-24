@@ -487,6 +487,30 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return isOwner(serviceUnit, lookupServiceAddress);
     }
 
+    private CompletableFuture<Optional<String>> getActiveOwnerAsync(
+            String serviceUnit,
+            ServiceUnitState state,
+            Optional<String> owner) {
+        CompletableFuture<Optional<String>> activeOwner = owner.isPresent()
+                ? brokerRegistry.lookupAsync(owner.get()).thenApply(lookupData -> lookupData.flatMap(__ -> owner))
+                : CompletableFuture.completedFuture(Optional.empty());
+
+
+        return activeOwner
+                .thenCompose(broker -> broker
+                        .map(__ -> activeOwner)
+                        .orElseGet(() -> deferGetOwnerRequest(serviceUnit).thenApply(
+                                ownerAfterDeferred -> ownerAfterDeferred == null ? Optional.empty()
+                                        : Optional.of(ownerAfterDeferred))))
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        log.error("Failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
+                                serviceUnit, state, owner, e);
+                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
+                    }
+                });
+    }
+
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
         if (!validateChannelState(Started, true)) {
             return CompletableFuture.failedFuture(
@@ -498,18 +522,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ownerLookUpCounters.get(state).getTotal().incrementAndGet();
         switch (state) {
             case Owned -> {
-                return CompletableFuture.completedFuture(Optional.of(data.dstBroker()));
+                return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.dstBroker()));
             }
             case Splitting -> {
-                return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
+                return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
-                    if (e != null) {
-                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                    }
-                }).thenApply(
-                        broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                return getActiveOwnerAsync(serviceUnit, state, Optional.empty());
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
