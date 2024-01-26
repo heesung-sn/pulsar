@@ -28,6 +28,8 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,6 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
@@ -104,7 +107,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final boolean createdExecutorProviders;
 
     private final boolean createdScheduledProviders;
-    private LookupService lookup;
+    private volatile LookupService lookup;
     private final ConnectionPool cnxPool;
     @Getter
     private final Timer timer;
@@ -1029,6 +1032,23 @@ public class PulsarClientImpl implements PulsarClient {
 
     public void reloadLookUp() throws PulsarClientException {
         lookup = createLookup(conf.getServiceUrl());
+    }
+
+    public synchronized void reloadOrUpdateLookUp(String serviceUrl, String serviceUrlTls)
+            throws PulsarClientException, URISyntaxException {
+        URI newUri = new URI(conf.isUseTls() && StringUtils.isNotBlank(serviceUrlTls) ? serviceUrlTls :
+                serviceUrl);
+        String currentUri = lookup.getServiceUrl();
+        String newUriStr;
+        if (!currentUri.startsWith(newUri.getScheme())) {
+            conf.setServiceUrl(newUri.toString());
+            reloadLookUp();
+            log.info("Reloaded lookup service from {} to {}", currentUri, newUri);
+        } else if (!currentUri.equals(newUriStr = newUri.toString())) {
+            conf.setServiceUrl(newUriStr);
+            lookup.updateServiceUrl(newUriStr);
+            log.info("Updated the lookup service url from {} to {}", currentUri, newUriStr);
+        }
     }
 
     public LookupService createLookup(String url) throws PulsarClientException {

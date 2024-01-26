@@ -18,11 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 abstract class HandlerState {
@@ -55,12 +53,7 @@ abstract class HandlerState {
 
     protected void setRedirectedClusterURI(String serviceUrl, String serviceUrlTls)
             throws PulsarClientException, URISyntaxException {
-
-        String uri = new URI(client.conf.isUseTls() && StringUtils.isNotBlank(serviceUrlTls) ? serviceUrlTls :
-                serviceUrl).toString();
-        client.conf.setServiceUrl(uri);
-        client.getLookup().updateServiceUrl(uri);
-        client.reloadLookUp();
+        client.reloadOrUpdateLookUp(serviceUrl, serviceUrlTls);
     }
 
     // moves the state to ready if it wasn't closed
