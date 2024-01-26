@@ -235,7 +235,7 @@ public class ClusterMigrationTest {
      * (11) Restart Broker-1 and connect producer/consumer on cluster-1
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 150_0000)
     public void testClusterMigration() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigration ---");
         final String topicName = BrokerTestUtil
@@ -305,8 +305,13 @@ public class ClusterMigrationTest {
         retryStrategically((test) -> topic2.getProducers().size() == 3, 10, 500);
         assertTrue(topic2.getProducers().size() == 3);
 
-        // try to consume backlog messages from cluster-1
-        consumer1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        // try to consume backlog messages from cluster-1 by a new client1_2 pointing to the old url, url1.
+        @Cleanup
+        PulsarClient client1_2 = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        consumer1 = client1_2.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
         for (int i = 0; i < n; i++) {
             Message<byte[]> msg = consumer1.receive();
             assertEquals(msg.getData(), "test1".getBytes());
@@ -401,7 +406,7 @@ public class ClusterMigrationTest {
         log.info("Successfully consumed messages by migrated consumers");
     }
 
-    @Test
+    @Test(timeOut = 150_0000)
     public void testClusterMigrationWithReplicationBacklog() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigrationWithReplicationBacklog ---");
         final String topicName = BrokerTestUtil
@@ -514,7 +519,7 @@ public class ClusterMigrationTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 150_0000)
     public void testClusterMigrationWithResourceCreated() throws Exception {
         log.info("--- Starting testClusterMigrationWithResourceCreated ---");
 
@@ -622,7 +627,7 @@ public class ClusterMigrationTest {
         client1.close();
     }
 
-    @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
+    @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes", timeOut = 150_0000)
     public void testNamespaceMigration(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
         log.info("--- Starting Test::testNamespaceMigration ---");
         // topic for the namespace1 (to be migrated)
@@ -743,9 +748,13 @@ public class ClusterMigrationTest {
             assertTrue(greenTopicNs2_1.getProducers().size() == 1);
         }
 
-        // try to consume backlog messages from cluster-1
-        blueConsumerNs1_1 = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
-        blueConsumerNs2_1 = client1.newConsumer().topic(topicName2).subscriptionName("s1").subscribe();
+        // try to consume backlog messages from cluster-1 by a new client1_2 pointing to the old url, url1.
+        @Cleanup
+        PulsarClient client1_2 = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        blueConsumerNs1_1 = client1_2.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        blueConsumerNs2_1 = client1_2.newConsumer().topic(topicName2).subscriptionName("s1").subscribe();
         for (int i = 0; i < n; i++) {
             Message<byte[]> msg = blueConsumerNs1_1.receive();
             assertEquals(msg.getData(), "test1".getBytes());
@@ -886,7 +895,7 @@ public class ClusterMigrationTest {
         client2.close();
     }
 
-    @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
+    @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes", timeOut = 150_000)
     public void testNamespaceMigrationWithReplicationBacklog(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate) throws Exception {
         log.info("--- Starting ReplicatorTest::testNamespaceMigrationWithReplicationBacklog ---");
         // topic for namespace1 (to be migrated)

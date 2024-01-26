@@ -700,8 +700,11 @@ public class ClientCnx extends PulsarHandler {
             try {
                 resource.setRedirectedClusterURI(serviceUrl, serviceUrlTls);
             } catch (URISyntaxException e) {
-                log.info("[{}] Invalid redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
+                log.error("[{}] Invalid redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
                         resourceId);
+            } catch (PulsarClientException e) {
+                log.error("[{}] Failed to set redirect url {}/{} for {}", remoteAddress, serviceUrl, serviceUrlTls,
+                        resourceId, e);
             }
         }
     }

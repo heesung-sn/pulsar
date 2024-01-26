@@ -33,7 +33,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -106,7 +105,6 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final boolean createdScheduledProviders;
     private LookupService lookup;
-    private Map<String, LookupService> urlLookupMap = new ConcurrentHashMap<>();
     private final ConnectionPool cnxPool;
     @Getter
     private final Timer timer;
@@ -961,24 +959,6 @@ public class PulsarClientImpl implements PulsarClient {
     @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
         return getConnection(topic, cnxPool.genRandomKeyToSelectCon()).thenApply(Pair::getLeft);
-    }
-
-    public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
-        TopicName topicName = TopicName.get(topic);
-        return getLookup(url).getBroker(topicName)
-                .thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
-                        lookupResult.getPhysicalAddress(), cnxPool.genRandomKeyToSelectCon()));
-    }
-
-    public LookupService getLookup(String serviceUrl) {
-        return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
-            try {
-                return createLookup(serviceUrl);
-            } catch (PulsarClientException e) {
-                log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
-                throw new IllegalStateException("Failed to update url " + url);
-            }
-        });
     }
 
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
