@@ -58,7 +58,7 @@ public class TransactionBufferHandlerImplTest {
         when(namespaceService.getBundleAsync(any())).thenReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class)));
         Optional<NamespaceEphemeralData> opData = Optional.empty();
         when(namespaceService.getOwnerAsync(any())).thenReturn(CompletableFuture.completedFuture(opData));
-        when(pulsarClient.getConnection(anyString(), anyInt()))
+        when(pulsarClient.getConnection(anyString(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(Pair.of(mock(ClientCnx.class), false)));
         when(pulsarClient.getConnection(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(mock(ClientCnx.class)));

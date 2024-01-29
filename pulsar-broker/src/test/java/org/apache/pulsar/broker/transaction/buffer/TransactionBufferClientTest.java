@@ -36,6 +36,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -272,9 +273,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ClientCnx clientCnx = mock(ClientCnx.class);
         completableFuture.complete(clientCnx);
         when(mockClient.getConnection(anyString())).thenReturn(completableFuture);
-        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+        when(mockClient.getConnection(anyString(), any(), anyInt())).thenReturn(
                 CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
-        when(mockClient.getConnection(any(), any(), anyInt())).thenReturn(completableFuture);
+        when(mockClient.getConnection((InetSocketAddress) any(), any(), anyInt())).thenReturn(completableFuture);
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
@@ -327,7 +328,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
         ClientCnx clientCnx = mock(ClientCnx.class);
-        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+        when(mockClient.getConnection(anyString(), any(), anyInt())).thenReturn(
                 CompletableFuture.completedFuture(Pair.of(clientCnx, false)));
         ChannelHandlerContext cnx = mock(ChannelHandlerContext.class);
         when(clientCnx.ctx()).thenReturn(cnx);

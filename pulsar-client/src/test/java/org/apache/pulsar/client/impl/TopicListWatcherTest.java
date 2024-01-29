@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
+import java.net.InetSocketAddress;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl.TopicsChangedListener;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,13 +62,13 @@ public class TopicListWatcherTest {
         when(connectionPool.genRandomKeyToSelectCon()).thenReturn(0);
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         clientCnxFuture = new CompletableFuture<>();
-        when(client.getConnectionToServiceUrl()).thenReturn(clientCnxFuture);
+        when(client.getConnectionToServiceUrl(any())).thenReturn(clientCnxFuture);
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
         String topic = "persistent://tenant/ns/topic\\d+";
-        when(client.getConnection(topic, 0)).
+        when(client.getConnection(eq(topic), any(), anyInt())).
                 thenReturn(clientCnxFuture.thenApply(clientCnx -> Pair.of(clientCnx, false)));
-        when(client.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
+        when(client.getConnection((InetSocketAddress) any(), any(), anyInt())).thenReturn(clientCnxFuture);
         when(connectionPool.getConnection(any(), any(), anyInt())).thenReturn(clientCnxFuture);
         watcherFuture = new CompletableFuture<>();
         watcher = new TopicListWatcher(listener, client,
@@ -76,7 +78,7 @@ public class TopicListWatcherTest {
 
     @Test
     public void testWatcherGrabsConnection() {
-        verify(client).getConnection(anyString(), anyInt());
+        verify(client).getConnection(anyString(), any(), anyInt());
     }
 
     @Test

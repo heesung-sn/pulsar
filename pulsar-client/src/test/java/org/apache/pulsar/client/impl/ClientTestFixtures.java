@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.util.Timer;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -82,9 +83,9 @@ class ClientTestFixtures {
         when(clientCnxMock.channel().remoteAddress()).thenReturn(mock(SocketAddress.class));
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
-        when(clientMock.getConnection(anyString(), anyInt()))
+        when(clientMock.getConnection(anyString(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(Pair.of(clientCnxMock, false)));
-        when(clientMock.getConnection(any(), any(), anyInt()))
+        when(clientMock.getConnection((InetSocketAddress) any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
         when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);

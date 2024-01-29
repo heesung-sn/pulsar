@@ -301,7 +301,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     }
 
     public CompletableFuture<ClientCnx> getClientCnxWithLookup(String topic) {
-        return pulsarClient.getConnection(topic, randomKeyForSelectConnection).thenApply(Pair::getLeft);
+        // No needs to look up the migrated cluster because the transaction buffer handler does not need to migrate
+        // to the new cluster(the life cycle ends with the current broker)
+        return pulsarClient.getConnection(topic, null, randomKeyForSelectConnection).thenApply(Pair::getLeft);
     }
 
     public CompletableFuture<ClientCnx> getClientCnx(String topic) {

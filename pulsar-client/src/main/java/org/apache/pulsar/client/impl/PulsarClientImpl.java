@@ -28,6 +28,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,6 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -800,6 +802,20 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+
+            if (urlLookupMap != null) {
+                try {
+                    for (LookupService lookupService : urlLookupMap.values()) {
+                        lookupService.close();
+                    }
+                } catch (Throwable t) {
+                    log.warn("Failed to shutdown lookup", t);
+                    throwable = t;
+                }
+                urlLookupMap.clear();
+            }
+
+
             if (tcClient != null) {
                 try {
                     tcClient.close();
@@ -947,8 +963,10 @@ public class PulsarClientImpl implements PulsarClient {
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
 
-    public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic, int randomKeyForSelectConnection) {
-        CompletableFuture<LookupTopicResult> lookupTopicResult = lookup.getBroker(TopicName.get(topic));
+    public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic, URI redirectedClusterURI,
+                                                                     int randomKeyForSelectConnection) {
+        CompletableFuture<LookupTopicResult> lookupTopicResult =
+                getLookup(redirectedClusterURI).getBroker(TopicName.get(topic));
         CompletableFuture<Boolean> isUseProxy = lookupTopicResult.thenApply(LookupTopicResult::isUseProxy);
         return lookupTopicResult.thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
                         lookupResult.getPhysicalAddress(), randomKeyForSelectConnection)).
@@ -960,20 +978,17 @@ public class PulsarClientImpl implements PulsarClient {
      */
     @VisibleForTesting
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
-        return getConnection(topic, cnxPool.genRandomKeyToSelectCon()).thenApply(Pair::getLeft);
+        return getConnection(topic, null, cnxPool.genRandomKeyToSelectCon()).thenApply(Pair::getLeft);
     }
 
-    public CompletableFuture<ClientCnx> getConnection(final String topic, final String url) {
-        TopicName topicName = TopicName.get(topic);
-        return getLookup(url).getBroker(topicName)
-                .thenCompose(lookupResult -> getConnection(lookupResult.getLogicalAddress(),
-                        lookupResult.getPhysicalAddress(), cnxPool.genRandomKeyToSelectCon()));
-    }
-
-    public LookupService getLookup(String serviceUrl) {
-        return urlLookupMap.computeIfAbsent(serviceUrl, url -> {
+    public LookupService getLookup(@Nullable URI serviceUrl) {
+        if (serviceUrl == null) {
+            return lookup;
+        }
+        String serviceUrlStr = serviceUrl.toString();
+        return urlLookupMap.computeIfAbsent(serviceUrlStr, url -> {
             try {
-                return createLookup(serviceUrl);
+                return createLookup(serviceUrlStr);
             } catch (PulsarClientException e) {
                 log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
                 throw new IllegalStateException("Failed to update url " + url);
@@ -981,7 +996,8 @@ public class PulsarClientImpl implements PulsarClient {
         });
     }
 
-    public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
+    public CompletableFuture<ClientCnx> getConnectionToServiceUrl(@Nullable URI serviceUrl) {
+        LookupService lookup = getLookup(serviceUrl);
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
                     "Can't get client connection to HTTP service URL", null));
@@ -991,7 +1007,9 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<ClientCnx> getProxyConnection(final InetSocketAddress logicalAddress,
+                                                           @Nullable URI redirectedClusterURI,
                                                            final int randomKeyForSelectConnection) {
+        LookupService lookup = getLookup(redirectedClusterURI);
         if (!(lookup instanceof BinaryProtoLookupService)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
                     "Cannot proxy connection through HTTP service URL", null));
