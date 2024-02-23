@@ -2200,6 +2200,7 @@ public class BrokerService implements Closeable {
         } catch (Exception e) {
             log.warn("Failed to check the ownership of the topic: {}, {}", topicName, e.getMessage());
         }
+
         return false;
     }
 
