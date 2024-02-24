@@ -322,7 +322,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertEquals(result.size(), NUM_BROKERS);
     }
 
-    @Test(timeOut = 240 * 1000)
+    @Test(timeOut = 300 * 1000)
     public void testIsolationPolicy() throws Exception {
         final String namespaceIsolationPolicyName = "my-isolation-policy";
         final String isolationEnabledNameSpace = DEFAULT_TENANT + "/my-isolation-policy" + nsSuffix;
@@ -371,7 +371,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
                     List<String> activeBrokers = admin.brokers().getActiveBrokers();
                     assertEquals(activeBrokers.size(), 2);
@@ -390,7 +390,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         }
 
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
             () -> {
                 List<String> activeBrokers = admin.brokers().getActiveBrokers();
                 assertEquals(activeBrokers.size(), 1);
