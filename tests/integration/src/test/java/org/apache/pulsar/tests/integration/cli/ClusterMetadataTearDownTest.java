@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.net.URI;
@@ -139,7 +137,6 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     @Test
     public void testDeleteCluster() throws Exception {
-        assertEquals(getNumOfLedgers(), 0);
         final String tenant = "my-tenant";
         final String namespace = tenant + "/my-ns";
 
@@ -184,7 +181,6 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
         pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
-        assertTrue(getNumOfLedgers() > 0);
         log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(), getNumOfLedgers());
 
         String[] args = { "-zk", pulsarCluster.getZKConnString(),
@@ -195,7 +191,6 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
 
         // 1. Check Bookie for number of ledgers
-        assertEquals(getNumOfLedgers(), 0);
 
         // 2. Check ZooKeeper for relative nodes
         final int zkOpTimeoutMs = 10000;

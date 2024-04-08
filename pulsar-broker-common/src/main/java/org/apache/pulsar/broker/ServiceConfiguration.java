@@ -2590,7 +2590,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         doc = "Name of load manager to use"
     )
-    private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
+    private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl";
 
     @FieldContext(category = CATEGORY_LOAD_BALANCER, doc = "Name of topic bundle assignment strategy to use")
     private String topicBundleAssignmentStrategy =
