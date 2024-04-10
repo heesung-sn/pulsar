@@ -45,6 +45,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -563,9 +564,6 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void setupSystemNamespace() throws Exception {
         if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
             admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
-        } else {
-            admin.tenants().updateTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
         }
 

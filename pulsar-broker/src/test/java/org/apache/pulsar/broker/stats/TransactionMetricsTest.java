@@ -84,12 +84,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
     }
 
     protected void afterSetup() throws Exception {
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                TenantInfo.builder()
-                        .adminRoles(Sets.newHashSet("appid1"))
-                        .allowedClusters(Sets.newHashSet("test"))
-                        .build());
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         createTransactionCoordinatorAssign();
         replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
     }

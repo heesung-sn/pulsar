@@ -76,8 +76,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
+import org.apache.pulsar.broker.loadbalance.NoopLoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistryImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -129,18 +131,23 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private ExtensibleLoadManagerImpl loadManager;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
+    void setConfig(ServiceConfiguration conf){
         conf.setAllowAutoTopicCreation(true);
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setLoadBalancerDebugModeEnabled(true);
         conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10);
+        conf.setLoadManagerClassName("org.apache.pulsar.broker.loadbalance.NoopLoadManager");
+    }
+
+    @BeforeClass
+    @Override
+    protected void setup() throws Exception {
+        setConfig(conf);
         super.internalSetup(conf);
 
-        setupSystemNamespace();
         admin.tenants().createTenant("public", createDefaultTenantInfo());
         admin.namespaces().createNamespace("public/default");
+        setupSystemNamespace();
 
         pulsar1 = pulsar;
         registry = new BrokerRegistryImpl(pulsar);
@@ -148,7 +155,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
         loadManager = mock(ExtensibleLoadManagerImpl.class);
-        additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
+        var conf2 = getDefaultConf();
+        setConfig(conf2);
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(conf2);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
         channel1 = createChannel(pulsar1);

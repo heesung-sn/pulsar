@@ -23,7 +23,9 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.auth.MockAuthentication;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.Assert;
@@ -40,6 +42,9 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
+        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
         conf.setAuthorizationEnabled(true);
     }
 

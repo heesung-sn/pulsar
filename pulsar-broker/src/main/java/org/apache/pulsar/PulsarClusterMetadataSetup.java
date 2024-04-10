@@ -357,7 +357,6 @@ public class PulsarClusterMetadataSetup {
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
-
     public static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)
             throws IOException, InterruptedException, ExecutionException {
 

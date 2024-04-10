@@ -132,7 +132,6 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
 
         // Setup namespaces
-
         admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         setupSystemNamespace();

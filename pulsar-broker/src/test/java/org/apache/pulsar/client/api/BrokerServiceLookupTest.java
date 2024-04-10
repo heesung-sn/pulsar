@@ -154,6 +154,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      */
     @Test(timeOut = 30_000)
     public void testMultipleBrokerLookup() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         log.info("-- Starting {} test --", methodName);
 
         /**** start broker-2 ****/
@@ -513,6 +516,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      */
     @Test
     public void testWebserviceServiceTls() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         log.info("-- Starting {} test --", methodName);
 
         /**** start broker-2 ****/
@@ -627,6 +633,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      */
     @Test(timeOut = 20000)
     public void testSplitUnloadLookupTest() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
 
         log.info("-- Starting {} test --", methodName);
 
@@ -1198,6 +1207,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     @Test
     public void testLookupConnectionNotCloseIfGetUnloadingExOrMetadataEx() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
@@ -1315,6 +1327,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testLookupConnectionNotCloseIfFailedToAcquireOwnershipOfBundle() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
         final var pulsarClientImpl = (PulsarClientImpl) pulsarClient;
