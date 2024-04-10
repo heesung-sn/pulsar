@@ -293,7 +293,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     log.info("Closed the channel producer.");
                 }
             }
-
+            
             PulsarClusterMetadataSetup.createTenantIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
 
