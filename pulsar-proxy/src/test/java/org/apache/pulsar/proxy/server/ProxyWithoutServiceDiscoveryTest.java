@@ -73,6 +73,10 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
 
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setBrokerClientCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setBrokerClientKeyFilePath(BROKER_KEY_FILE_PATH);
+
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("admin");
         superUserRoles.add("superproxy");

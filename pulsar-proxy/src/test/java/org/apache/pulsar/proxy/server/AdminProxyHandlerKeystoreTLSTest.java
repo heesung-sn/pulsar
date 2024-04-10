@@ -70,6 +70,23 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         conf.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         conf.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
 
+        conf.setBrokerClientTlsEnabled(true);
+        conf.setBrokerClientTlsEnabledWithKeyStore(true);
+
+        conf.setBrokerClientTlsEnabledWithKeyStore(true);
+        conf.setBrokerClientTlsKeyStoreType(KEYSTORE_TYPE);
+        conf.setBrokerClientTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
+        conf.setBrokerClientTlsKeyStorePassword(BROKER_KEYSTORE_PW);
+        conf.setBrokerClientTlsTrustStoreType(KEYSTORE_TYPE);
+        conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
+        conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
+                KEYSTORE_TYPE, BROKER_KEYSTORE_FILE_PATH, BROKER_KEYSTORE_PW));
+        Set<String> providers1 = new HashSet<>();
+        providers1.add(AuthenticationProviderTls.class.getName());
+        conf.setAuthenticationProviders(providers1);
+
         super.internalSetup();
 
         proxyConfig.setWebServicePort(Optional.of(0));

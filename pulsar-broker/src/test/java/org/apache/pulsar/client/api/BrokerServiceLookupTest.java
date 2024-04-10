@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
@@ -292,6 +293,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     @Test
     public void testConcurrentWriteBrokerData() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         Map<String, NamespaceBundleStats> map = new ConcurrentHashMap<>();
         for (int i = 0; i < 100; i++) {
             map.put("key"+ i, new NamespaceBundleStats());

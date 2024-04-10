@@ -138,8 +138,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10);
         super.internalSetup(conf);
 
-        admin.tenants().createTenant("pulsar", createDefaultTenantInfo());
-        admin.namespaces().createNamespace("pulsar/system");
+        setupSystemNamespace();
         admin.tenants().createTenant("public", createDefaultTenantInfo());
         admin.namespaces().createNamespace("public/default");
 
