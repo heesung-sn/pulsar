@@ -69,6 +69,13 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         conf.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
         conf.setNumExecutorThreadPoolSize(5);
 
+        conf.setBrokerClientTlsEnabled(true);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+
         super.internalSetup();
 
         // start proxy service
@@ -135,7 +142,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("randoUser"),
                                                              ImmutableSet.of(configClusterName)));
-            Assert.assertEquals(ImmutableSet.of("tenant1"), adminAdmin.tenants().getTenants());
+            Assert.assertTrue(adminAdmin.tenants().getTenants().contains("tenant1"));
         }
     }
 

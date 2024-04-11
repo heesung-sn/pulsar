@@ -572,6 +572,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
+    protected void updateTenant(String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            admin.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin.tenants().updateTenant(tenant, tenantInfo);
+        }
+    }
+
 
     protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
         TestAsyncResponse ctx = new TestAsyncResponse();

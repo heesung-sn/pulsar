@@ -2095,10 +2095,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         startBroker();
 
         String systemTopic = SYSTEM_NAMESPACE.toString() + "/" + "testDeleteTopicPolicyWhenDeleteSystemTopic";
-        admin.tenants().createTenant(SYSTEM_NAMESPACE.getTenant(),
+
+        updateTenant(SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
 
-        admin.namespaces().createNamespace(SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(systemTopic).create();

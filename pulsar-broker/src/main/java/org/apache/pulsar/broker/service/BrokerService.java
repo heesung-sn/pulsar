@@ -1805,19 +1805,15 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
-        if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
-            result.complete(null);
-        } else {
-            AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
-                if (isMigrated) {
-                    result.completeExceptionally(
-                            new BrokerServiceException.TopicMigratedException(topicName + " already migrated"));
-                } else {
-                    result.complete(null);
-                }
-                return null;
-            });
-        }
+        AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
+            if (isMigrated) {
+                result.completeExceptionally(
+                        new BrokerServiceException.TopicMigratedException(topicName + " already migrated"));
+            } else {
+                result.complete(null);
+            }
+            return null;
+        });
         return result;
     }
 
@@ -2104,12 +2100,7 @@ public class BrokerService implements Closeable {
     }
 
     public void checkClusterMigration() {
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            if (topic.isPresent() && !ExtensibleLoadManagerImpl.isInternalTopic(topic.get().getName())) {
-                topic.ifPresent(Topic::checkClusterMigration);
-            }
-        });
+        forEachTopic(Topic::checkClusterMigration);
     }
 
     public void checkMessageExpiry() {
