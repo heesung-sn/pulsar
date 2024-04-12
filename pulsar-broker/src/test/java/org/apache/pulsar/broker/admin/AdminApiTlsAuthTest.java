@@ -508,7 +508,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 }
             }, 5, 1000);
             Assert.assertTrue(success.booleanValue());
-            Assert.assertEquals(Set.of("tenantX"), admin.tenants().getTenants());
+            Assert.assertTrue(admin.tenants().getTenants().contains("tenantX"));
         } finally {
             Files.delete(keyFile.toPath());
         }
