@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -62,6 +63,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         ServiceConfiguration conf = super.getDefaultConf();
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
 
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.

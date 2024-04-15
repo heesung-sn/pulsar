@@ -111,9 +111,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
                 + webServicePort).build());
 
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         createTransactionCoordinatorAssign(numPartitionsOfTC);
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -241,6 +239,18 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                                     .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
                     Assert.assertEquals(publisherStatsList.size(), expectCount);
                 });
+    }
+
+    protected void setupSystemNamespace() throws Exception {
+        if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
+            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        }
+
+        if (!admin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        }
     }
 
 }

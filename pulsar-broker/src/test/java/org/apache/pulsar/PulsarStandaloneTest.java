@@ -28,6 +28,7 @@ import java.util.List;
 import lombok.Cleanup;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -92,6 +93,7 @@ public class PulsarStandaloneTest {
             standalone.getConfig().setBrokerClientAuthenticationPlugin(
                     MockTokenAuthenticationProvider.MockAuthentication.class.getName());
         }
+        standalone.getConfig().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         final File bkDir = IOUtils.createTempDir("standalone", "bk");
         standalone.setNumOfBk(1);
         standalone.setBkPort(0);
