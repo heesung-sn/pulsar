@@ -27,7 +27,6 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -45,8 +44,7 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
         configuration.setTransactionCoordinatorEnabled(true);
         configuration.setMaxActiveTransactionsPerCoordinator(2);
         super.baseSetup(configuration);
-        admin.tenants().createTenant("pulsar", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace(new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()

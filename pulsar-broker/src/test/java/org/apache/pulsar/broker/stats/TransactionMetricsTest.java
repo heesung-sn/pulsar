@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -68,6 +69,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
     protected void setup() throws Exception {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
+        serviceConfiguration.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         super.baseSetup(serviceConfiguration);
     }
 

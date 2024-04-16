@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.Map;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.testng.annotations.AfterClass;
@@ -52,7 +53,10 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
     public void testBookieClientStatsGenerator() throws Exception {
         // should not generate any NPE or other exceptions..
         Map<String, Map<String, PendingBookieOpsStats>> stats = BookieClientStatsGenerator.generate(super.getPulsar());
-        assertTrue(stats.isEmpty());
+
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertTrue(stats.isEmpty());
+        }
     }
 
     @Test

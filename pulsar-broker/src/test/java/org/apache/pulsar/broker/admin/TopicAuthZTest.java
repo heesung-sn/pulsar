@@ -30,25 +30,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.plugin.EntryFilterDefinition;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.testcontext.MockEntryFilterProvider;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.TopicName;
@@ -85,7 +81,7 @@ public class TopicAuthZTest extends AuthZTest {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
-        this.superUserAdmin =PulsarAdmin.builder()
+        this.superUserAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
                 .build();
@@ -96,7 +92,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
-
+        setupSystemNamespace(tenantInfo);
     }
 
     @SneakyThrows

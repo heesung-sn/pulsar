@@ -374,7 +374,7 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
             String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 

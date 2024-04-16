@@ -572,6 +572,19 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
+    protected void setupSystemNamespace(TenantInfo tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
+            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(), tenantInfo);
+        } else {
+            admin.tenants().updateTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(), tenantInfo);
+        }
+
+        if (!admin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        }
+    }
+
     protected void updateTenant(String tenant, TenantInfoImpl tenantInfo) throws Exception {
         if (!admin.tenants().getTenants().contains(tenant)) {
             admin.tenants().createTenant(tenant, tenantInfo);

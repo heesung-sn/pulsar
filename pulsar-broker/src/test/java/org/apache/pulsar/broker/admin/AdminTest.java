@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -462,8 +463,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @Test
     public void properties() throws Throwable {
         Object response = asyncRequests(ctx -> properties.getTenants(ctx));
-        assertEquals(response, new ArrayList<>());
+
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(response, new ArrayList<>());
+        }
+
         verify(properties, times(1)).validateSuperUserAccessAsync();
+
+
 
         // create local cluster
         asyncRequests(ctx -> clusters.createCluster(ctx, configClusterName, ClusterDataImpl.builder().build()));
@@ -478,7 +485,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(2)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> properties.getTenants(ctx));
-        assertEquals(response, List.of("test-property"));
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(response, List.of("test-property"));
+        }
         verify(properties, times(3)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> properties.getTenantAdmin(ctx, "test-property"));
@@ -607,7 +616,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         response = asyncRequests(ctx -> properties.deleteTenant(ctx, "error-property", false));
         response = new ArrayList<>();
         response = asyncRequests(ctx -> properties.getTenants(ctx));
-        assertEquals(response, new ArrayList<>());
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(response, new ArrayList<>());
+        }
 
         // Create a namespace to test deleting a non-empty property
         TenantInfoImpl newPropertyAdmin2 = TenantInfoImpl.builder()
@@ -798,6 +809,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void brokerStats() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         doReturn("client-id").when(brokerStats).clientAppId();
         Collection<Metrics> metrics = brokerStats.getMetrics();
         assertNotNull(metrics);

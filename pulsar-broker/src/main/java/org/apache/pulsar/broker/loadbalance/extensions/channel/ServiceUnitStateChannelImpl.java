@@ -298,7 +298,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
 
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName(),
+                            config.getDefaultNumberOfNamespaceBundles());
 
             ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 
@@ -484,28 +485,35 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String serviceUnit,
             ServiceUnitState state,
             Optional<String> owner) {
-        return deferGetOwnerRequest(serviceUnit)
-                .thenCompose(newOwner -> {
-                    if (newOwner == null) {
-                        return CompletableFuture.completedFuture(null);
-                    }
 
-                    return brokerRegistry.lookupAsync(newOwner)
-                            .thenApply(lookupData -> {
-                                if (lookupData.isPresent()) {
-                                    return newOwner;
-                                } else {
-                                    throw new IllegalStateException(
-                                            "The new owner " + newOwner + " is inactive.");
-                                }
-                            });
-                }).whenComplete((__, e) -> {
-                    if (e != null) {
-                        log.error("{} failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
-                                brokerId, serviceUnit, state, owner, e);
-                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                    }
-                }).thenApply(Optional::ofNullable);
+        return brokerRegistry.getAvailableBrokersAsync().thenCompose(activeBrokers -> {
+            if (activeBrokers.isEmpty()) {
+                return null;
+            } else {
+                return deferGetOwnerRequest(serviceUnit)
+                        .thenCompose(newOwner -> {
+                            if (newOwner == null) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+
+                            return brokerRegistry.lookupAsync(newOwner)
+                                    .thenApply(lookupData -> {
+                                        if (lookupData.isPresent()) {
+                                            return newOwner;
+                                        } else {
+                                            throw new IllegalStateException(
+                                                    "The new owner " + newOwner + " is inactive.");
+                                        }
+                                    });
+                        }).whenComplete((__, e) -> {
+                            if (e != null) {
+                                log.error("{} failed to get active owner broker. serviceUnit:{}, state:{}, owner:{}",
+                                        brokerId, serviceUnit, state, owner, e);
+                                ownerLookUpCounters.get(state).getFailure().incrementAndGet();
+                            }
+                        });
+            }
+        }).thenApply(Optional::ofNullable);
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {

@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -63,8 +62,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         ServiceConfiguration configuration = getDefaultConf();
         configuration.setTransactionCoordinatorEnabled(true);
         super.baseSetup(configuration);
-        admin.tenants().createTenant("pulsar", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace(new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         createTransactionCoordinatorAssign(16);
         admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }

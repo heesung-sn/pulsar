@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -59,6 +60,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         super.baseSetup();
     }
 

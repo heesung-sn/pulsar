@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -185,6 +186,18 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         }
         if (!serviceInternalAdmin.namespaces().getNamespaces(DEFAULT_TENANT).contains(DEFAULT_NAMESPACE)) {
             serviceInternalAdmin.namespaces().createNamespace(DEFAULT_NAMESPACE);
+        }
+    }
+
+    protected void setupSystemNamespace(TenantInfo tenantInfo) throws Exception {
+        if (!serviceInternalAdmin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
+            serviceInternalAdmin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                    tenantInfo);
+        }
+
+        if (!serviceInternalAdmin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            serviceInternalAdmin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         }
     }
 
