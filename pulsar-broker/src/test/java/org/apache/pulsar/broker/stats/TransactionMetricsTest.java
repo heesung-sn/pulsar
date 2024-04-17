@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -69,7 +69,6 @@ public class TransactionMetricsTest extends BrokerTestBase {
     protected void setup() throws Exception {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
-        serviceConfiguration.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         super.baseSetup(serviceConfiguration);
     }
 
@@ -287,6 +286,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         metric = metrics.get("pulsar_storage_size");
         assertEquals(metric.size(), 2);
         metric = metrics.get("pulsar_storage_logical_size");

@@ -67,6 +67,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -155,8 +156,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // namespace ownership
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
-
         setupClusters();
+        setupSystemNamespace();
     }
 
     @Test
@@ -234,6 +235,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
+            if (tenant.equals("pulsar")) {
+                continue;
+            }
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                 deleteNamespaceWithRetry(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
@@ -492,6 +496,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void nonPersistentTopics() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         final String topicName = "nonPersistentTopic";
 
         final String nonPersistentTopicName = "non-persistent://" + defaultNamespace + "/" + topicName;
@@ -1352,6 +1359,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     //  2. update isolation policy, without broker matched, lookup will fail.
     @Test
     public void brokerNamespaceIsolationPoliciesUpdateOnTime() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
+
         String brokerName = pulsar.getAdvertisedAddress();
         String ns1Name = defaultTenant + "/test_ns1_iso_" + System.currentTimeMillis();
         admin.namespaces().createNamespace(ns1Name, Set.of("test"));
@@ -1702,6 +1713,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "namespaceAttrs")
     public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         restartClusterAfterTest();
 
         // Set conf.

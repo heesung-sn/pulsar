@@ -963,6 +963,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     public void disableBroker() throws Exception {
+        serviceUnitStateChannel.cleanOwnerships();
         leaderElectionService.close();
         brokerRegistry.unregister();
     }

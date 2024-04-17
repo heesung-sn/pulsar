@@ -154,12 +154,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
             for (String tenant : admin.tenants().getTenants()) {
+                if (tenant.equals("pulsar")) {
+                    continue;
+                }
                 for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                     deleteNamespaceWithRetry(namespace, true);
                 }
                 admin.tenants().deleteTenant(tenant, true);
             }
-
             for (String cluster : admin.clusters().getClusters()) {
                 admin.clusters().deleteCluster(cluster);
             }

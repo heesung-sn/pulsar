@@ -86,6 +86,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
 
         for (String tenant : admin.tenants().getTenants()) {
+            if (tenant.equals("pulsar")) {
+                continue;
+            }
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                 admin.namespaces().deleteNamespace(namespace, true);
             }

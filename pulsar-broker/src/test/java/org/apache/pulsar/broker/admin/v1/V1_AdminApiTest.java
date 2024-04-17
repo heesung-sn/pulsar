@@ -191,6 +191,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     public void reset() throws Exception {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
+            if (tenant.equals("pulsar")) {
+                continue;
+            }
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                 deleteNamespaceWithRetry(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
