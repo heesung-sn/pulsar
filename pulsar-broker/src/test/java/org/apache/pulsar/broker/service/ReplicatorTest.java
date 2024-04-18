@@ -1566,7 +1566,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,
                                  PulsarService pulsarService) throws Exception {
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), coordinatorSize);
+
+        if (!admin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), coordinatorSize);
+        }
+
         pulsarService.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()

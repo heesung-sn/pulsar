@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -45,6 +46,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxTenant() throws Exception {
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         conf.setMaxTenants(2);
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
