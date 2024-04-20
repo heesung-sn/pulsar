@@ -458,12 +458,12 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         @Cleanup
         ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
 
-        String forkJoinPoolNamePrefix = "ForkJoinPool.commonPool";
+        String poolNamePrefix = "Metadata-VThread";
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s*, but currently it is thread %s",
-                    forkJoinPoolNamePrefix, currentThreadName);
-            assertTrue(currentThreadName.startsWith(forkJoinPoolNamePrefix), errorMessage);
+                    poolNamePrefix, currentThreadName);
+            assertTrue(currentThreadName.startsWith(poolNamePrefix), errorMessage);
         };
 
         // put with node which has parent(but the parent node is not exists).

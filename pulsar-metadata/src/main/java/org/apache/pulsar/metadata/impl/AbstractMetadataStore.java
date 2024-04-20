@@ -32,6 +32,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -76,6 +77,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
     private final MetadataStoreStats metadataStoreStats;
+    private final Thread.Builder vThreadBuilder;
 
     // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
     // we want to avoid the overhead of 'volatile'.
@@ -138,6 +140,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
+
+        Properties systemProperties = System.getProperties();
+        systemProperties.put("jdk.virtualThreadScheduler.parallelism", "1");
+        systemProperties.put("jdk.virtualThreadScheduler.maxPoolSize", "1");
+        systemProperties.put("jdk.virtualThreadScheduler.minRunnable", "1");
+        vThreadBuilder = Thread.ofVirtual().name("Metadata-VThread", 0);
     }
 
     @Override
@@ -541,16 +549,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
+
+
     /**
      * Run the task in the ForkJoinPool.commonPool thread and fail the future if exceptionally.
      */
     @VisibleForTesting
     public void execute(Runnable task, CompletableFuture<?> future) {
-        CompletableFuture.runAsync(task).exceptionally(e -> {
-            if (!future.isDone()) {
-                future.completeExceptionally(e);
+        vThreadBuilder.start(() -> {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                if (!future.isDone()) {
+                    future.completeExceptionally(t);
+                }
             }
-            return null;
         });
     }
 
@@ -559,13 +572,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      */
     @VisibleForTesting
     public void execute(Runnable task, Supplier<List<CompletableFuture<?>>> futures) {
-        CompletableFuture.runAsync(task).exceptionally(e -> {
-            futures.get().forEach(f -> {
-                if (!f.isDone()) {
-                    f.completeExceptionally(e);
-                }
-            });
-            return null;
+        vThreadBuilder.start(() -> {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                futures.get().forEach(f -> {
+                    if (!f.isDone()) {
+                        f.completeExceptionally(t);
+                    }
+                });
+            }
         });
     }
 
