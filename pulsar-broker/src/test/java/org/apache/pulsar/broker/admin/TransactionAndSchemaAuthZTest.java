@@ -75,8 +75,8 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
 
-        superUserAdmin.tenants().createTenant("pulsar", tenantInfo);
-        superUserAdmin.namespaces().createNamespace("pulsar/system");
+
+        setupSystemNamespace(tenantInfo);
     }
 
     @SneakyThrows

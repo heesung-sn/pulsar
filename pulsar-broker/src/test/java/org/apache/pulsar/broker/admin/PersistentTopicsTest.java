@@ -186,9 +186,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
         setupSystemNamespace(new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
-        admin.namespaces().createNamespace("pulsar/system", 4);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster, "test"));
-
         admin.namespaces().createNamespace(testTenant + "/" + testNamespaceLocal);
     }
 

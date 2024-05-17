@@ -390,11 +390,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                                                         Set.of("test")));
         }
         WebTarget root = buildWebClient("superproxy");
-        Assert.assertEquals(Set.of("tenant1"),
-                            root.path("/admin/v2/tenants")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "admin")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertTrue(
+                root.path("/admin/v2/tenants")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "admin")
+                        .get(new GenericType<List<String>>() {
+                        }).contains("tenant1"));
     }
 
     @Test
