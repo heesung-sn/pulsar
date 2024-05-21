@@ -149,6 +149,12 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + getTlsFileForClient("admin.cert") + "," + "tlsKeyFile:" + TLS_MIM_SERVER_KEY_FILE_PATH);
 
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setBrokerClientTlsEnabled(true);
+
         setup();
 
         try {
@@ -189,7 +195,15 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
 
+
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setBrokerClientTlsEnabled(true);
+
         setup();
+
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();

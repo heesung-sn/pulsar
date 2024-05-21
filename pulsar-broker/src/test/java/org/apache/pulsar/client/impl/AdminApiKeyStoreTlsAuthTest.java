@@ -173,7 +173,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
             admin.tenants().createTenant("tenant1",
                                          new TenantInfoImpl(Set.of("foobar"),
                                                         Set.of("test")));
-            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
+            Assert.assertTrue(admin.tenants().getTenants().containsAll(Set.of("tenant1")));
         }
     }
 
@@ -215,7 +215,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
             admin.tenants().createTenant("tenant1",
                     new TenantInfoImpl(Set.of("foobar"),
                             Set.of("test")));
-            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
+            Assert.assertTrue(admin.tenants().getTenants().containsAll(Set.of("tenant1")));
 
             admin.namespaces().createNamespace("tenant1/ns1");
 

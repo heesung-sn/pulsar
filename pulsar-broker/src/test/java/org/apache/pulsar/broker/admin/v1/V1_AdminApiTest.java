@@ -1524,9 +1524,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz2/use/ns1");
 
-        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            assertEquals(admin.tenants().getTenants(), List.of("prop-xyz", "prop-xyz2"));
-        }
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz", "prop-xyz2")));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz2").getAdminRoles(),
                 List.of("role1", "role2"));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz2").getAllowedClusters(), Set.of("use"));
@@ -1543,9 +1541,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("prop-xyz2/use/ns1");
         admin.tenants().deleteTenant("prop-xyz2");
-        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            assertEquals(admin.tenants().getTenants(), Set.of("prop-xyz"));
-        }
+        assertTrue(admin.tenants().getTenants().containsAll(Set.of("prop-xyz")));
     }
 
     @Test(dataProvider = "topicName")

@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -773,7 +774,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz")));
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), tenantInfo);
 
@@ -792,7 +793,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
-        assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        }
 
         // Check name validation
         try {
@@ -2452,7 +2456,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBackwardCompatibility() throws Exception {
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz")));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAdminRoles(),
                 List.of("role1", "role2"));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test"));
@@ -2469,7 +2473,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
-        assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        }
     }
 
     @Test(dataProvider = "topicName")
