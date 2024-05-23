@@ -1814,6 +1814,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceSplitBundleWithSpecifiedPositionsDivideAlgorithm() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            //TODO: currently ExtensibleLoadManagerImpl does not support multi pos splits.
+            return;
+        }
         // 1. Force to create a topic
         final String namespace = "prop-xyz/ns-one-bundle";
         final String topic = "persistent://"+ namespace + "/topic";

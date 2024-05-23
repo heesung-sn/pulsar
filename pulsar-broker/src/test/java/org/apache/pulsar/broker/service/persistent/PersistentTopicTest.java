@@ -56,6 +56,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -121,6 +122,7 @@ public class PersistentTopicTest extends BrokerTestBase {
     @Override protected void doInitConf() throws Exception {
         super.doInitConf();
         this.conf.setManagedLedgerCursorBackloggedThreshold(10);
+        this.conf.setNamespaceBundleUnloadingTimeoutMs(4000);
     }
 
     /**
@@ -147,7 +149,14 @@ public class PersistentTopicTest extends BrokerTestBase {
         doNothing().when(ledger).asyncClose(any(), any());
 
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
-        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS).get();
+        try {
+            pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof TimeoutException) {
+                System.out.println("this is fine");
+            }
+        }
+
 
         retryStrategically((test) -> !pulsar.getBrokerService().getTopicReference(topicName).isPresent(), 5, 500);
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());

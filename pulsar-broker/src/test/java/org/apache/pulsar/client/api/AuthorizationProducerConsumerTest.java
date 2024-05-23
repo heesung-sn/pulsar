@@ -91,6 +91,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         providers.add(TestAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
+        conf.setBrokerClientAuthenticationPlugin(ClientAuthentication.class.getName());
         conf.setClusterName("test");
 
         super.init();
@@ -815,6 +816,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public static class ClientAuthentication implements Authentication {
         String user;
 
+        public ClientAuthentication() {
+            user = "superUser";
+        }
+
         public ClientAuthentication(String user) {
             this.user = user;
         }
@@ -983,7 +988,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
             TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
-            if (role.equals("plugbleRole")) {
+            if (role.equals("plugbleRole") || role.equals("superUser")) {
                 isAuthorizedFuture = CompletableFuture.completedFuture(true);
             } else {
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
@@ -999,6 +1004,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                                                                    String role,
                                                                    TopicOperation operation,
                                                                    AuthenticationDataSource authData) {
+            if (role.equals("superUser")) {
+                return CompletableFuture.completedFuture(true);
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             if (authData.hasSubscription()) {
                 String subscription = authData.getSubscription();
@@ -1020,6 +1028,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         static AuthenticationDataSource authenticationData;
         static String authDataJson;
 
+        public TestAuthorizationProviderWithGrantPermission() {
+            grantRoles.add("superUser");
+        }
         @Override
         public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
                 AuthenticationDataSource authenticationData) {
