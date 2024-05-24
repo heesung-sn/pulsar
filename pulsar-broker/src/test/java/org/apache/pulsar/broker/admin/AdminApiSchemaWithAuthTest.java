@@ -76,6 +76,8 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         conf.setAuthenticationProviders(providers);
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
         super.internalSetup();
 
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
