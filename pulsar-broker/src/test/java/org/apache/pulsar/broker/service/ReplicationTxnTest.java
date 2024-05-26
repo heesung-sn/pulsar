@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
@@ -64,7 +65,6 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
 
     private boolean transactionBufferSegmentedSnapshotEnabled = false;
     private int txnLogPartitions = 4;
-
     @Override
     @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
@@ -92,6 +92,12 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
         config.setTransactionLogBatchedWriteEnabled(true);
         config.setTransactionPendingAckBatchedWriteEnabled(true);
         config.setTransactionBufferSegmentedSnapshotEnabled(transactionBufferSegmentedSnapshotEnabled);
+
+        // TODO: RCA New Load Balancer fails with the following error.
+        // 2024-05-26T05:14:28,003 - ERROR - [pulsar-io-74-18:PerChannelBookieClient] -
+        // Could not connect to bookie: [id: 0x97542357, L:null ! R:/218.38.137.28:62564]/bk2test,
+        // current state CONNECTING :
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
     }
 
     @Override

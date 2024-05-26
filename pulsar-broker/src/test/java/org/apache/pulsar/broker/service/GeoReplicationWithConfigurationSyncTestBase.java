@@ -25,6 +25,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -161,6 +162,9 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
+
+        // TODO: RCA for ExtensibleLoadBalancer (bk write fails)
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
         config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + brokerConfigZk.getZookeeperPort() + "/foo");
         config.setBrokerDeleteInactiveTopicsEnabled(false);
