@@ -37,6 +37,7 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -70,6 +71,9 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     public void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
+
+        // too many asserts on topic metric
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
 
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
