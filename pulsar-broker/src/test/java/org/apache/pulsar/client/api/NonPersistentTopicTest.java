@@ -1028,7 +1028,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     .build());
 
             admin1.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
-            setupSystemNamespace(new TenantInfoImpl(
+            setupSystemNamespace(admin1, new TenantInfoImpl(
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
             admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",

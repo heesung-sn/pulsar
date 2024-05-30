@@ -573,6 +573,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected void setupSystemNamespace(TenantInfo tenantInfo) throws Exception {
+        setupSystemNamespace(admin, tenantInfo);
+    }
+
+    protected void setupSystemNamespace(PulsarAdmin admin, TenantInfo tenantInfo) throws Exception {
         if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
             admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(), tenantInfo);
         } else {
