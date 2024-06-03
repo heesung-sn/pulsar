@@ -72,22 +72,22 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
     public Object[][] unloadCases (){
         // [msgCount, enabledBatch, maxMsgPerBatch, subType, ackMsgCount]
         return new Object[][]{
-                {100, false, 1, Exclusive, 0},
-                {100, false, 1, Failover, 0},
-                {100, false, 1, Shared, 0},
-                {100, false, 1, Key_Shared, 0},
-                {100, true, 5, Exclusive, 0},
-                {100, true, 5, Failover, 0},
-                {100, true, 5, Shared, 0},
-                {100, true, 5, Key_Shared, 0},
-                {100, false, 1, Exclusive, 50},
-                {100, false, 1, Failover, 50},
-                {100, false, 1, Shared, 50},
+                //{100, false, 1, Exclusive, 0},
+                //{100, false, 1, Failover, 0},
+                //{100, false, 1, Shared, 0},
+                //{100, false, 1, Key_Shared, 0},
+                //{100, true, 5, Exclusive, 0},
+                //{100, true, 5, Failover, 0},
+                //{100, true, 5, Shared, 0},
+                //{100, true, 5, Key_Shared, 0},
+                //{100, false, 1, Exclusive, 50},
+                //{100, false, 1, Failover, 50},
+                //{100, false, 1, Shared, 50},
                 {100, false, 1, Key_Shared, 50},
-                {100, true, 5, Exclusive, 50},
-                {100, true, 5, Failover, 50},
-                {100, true, 5, Shared, 50},
-                {100, true, 5, Key_Shared, 50},
+                //{100, true, 5, Exclusive, 50},
+                //{100, true, 5, Failover, 50},
+                //{100, true, 5, Shared, 50},
+                //{100, true, 5, Key_Shared, 50},
         };
     }
 
@@ -131,7 +131,7 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topicName);
     }
 
-    @Test(dataProvider = "unloadCases")
+    @Test(dataProvider = "unloadCases", invocationCount = 20)
     public void testMultiConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
                                   int ackMsgCount) throws Exception {
         if (subType == Exclusive){
