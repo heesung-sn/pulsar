@@ -200,6 +200,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         Set<String> providersClassNames = Sets.newHashSet(MutualAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providersClassNames);
+        conf.setBrokerClientAuthenticationPlugin(MutualAuthentication.class.getName());
 
         isTcpLookup = true;
         internalSetup();

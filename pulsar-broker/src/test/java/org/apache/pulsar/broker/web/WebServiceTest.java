@@ -60,6 +60,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
 import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.UsageType;
@@ -250,6 +251,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthDisallowInsecure() throws Exception {
+
         setupEnv(false, true, true, false, -1, false);
 
         // Only the request with trusted client certificate should succeed
@@ -485,6 +487,7 @@ public class WebServiceTest {
         roles.add("client");
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));

@@ -63,6 +63,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -558,6 +559,44 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             admin.namespaces().createNamespace(namespace);
         }
     }
+
+    protected void setupSystemNamespace() throws Exception {
+        if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
+            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
+        }
+
+        if (!admin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        }
+    }
+
+    protected void setupSystemNamespace(TenantInfo tenantInfo) throws Exception {
+        setupSystemNamespace(admin, tenantInfo);
+    }
+
+    protected void setupSystemNamespace(PulsarAdmin admin, TenantInfo tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(NamespaceName.SYSTEM_NAMESPACE.getTenant())) {
+            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(), tenantInfo);
+        } else {
+            admin.tenants().updateTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(), tenantInfo);
+        }
+
+        if (!admin.namespaces().getNamespaces(NamespaceName.SYSTEM_NAMESPACE.getTenant())
+                .contains(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        }
+    }
+
+    protected void updateTenant(String tenant, TenantInfoImpl tenantInfo) throws Exception {
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            admin.tenants().createTenant(tenant, tenantInfo);
+        } else {
+            admin.tenants().updateTenant(tenant, tenantInfo);
+        }
+    }
+
 
     protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
         TestAsyncResponse ctx = new TestAsyncResponse();

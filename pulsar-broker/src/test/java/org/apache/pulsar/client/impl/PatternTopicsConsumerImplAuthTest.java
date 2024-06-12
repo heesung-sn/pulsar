@@ -97,6 +97,8 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
 
+        conf.setBrokerClientAuthenticationPlugin(ClientAuthentication.class.getName());
+
         conf.setClusterName("test");
         super.internalSetup();
     }
@@ -375,6 +377,9 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     }
 
     public static class ClientAuthentication implements Authentication {
+        public ClientAuthentication() {
+            user = superUserRole;
+        }
         String user;
 
         public ClientAuthentication(String user) {

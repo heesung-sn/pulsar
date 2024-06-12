@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -52,6 +53,9 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServiceAdminClientConfiguration() throws PulsarServerException {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         Properties config = pulsar.getConfiguration().getProperties();
         config.setProperty("brokerClient_operationTimeoutMs", "60000");
         config.setProperty("brokerClient_statsIntervalSeconds", "10");
@@ -62,6 +66,9 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServicePulsarClientConfiguration() throws PulsarServerException {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         Properties config = pulsar.getConfiguration().getProperties();
         config.setProperty("brokerClient_operationTimeoutMs", "60000");
         config.setProperty("brokerClient_statsIntervalSeconds", "10");

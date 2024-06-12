@@ -357,7 +357,6 @@ public class PulsarClusterMetadataSetup {
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
-
     public static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)
             throws IOException, InterruptedException, ExecutionException {
 
@@ -375,7 +374,7 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
             String cluster, int bundleNumber) throws IOException {
         NamespaceResources namespaceResources = resources.getNamespaceResources();
 

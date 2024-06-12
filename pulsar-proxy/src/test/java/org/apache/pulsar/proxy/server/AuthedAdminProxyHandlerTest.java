@@ -73,6 +73,13 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         conf.setNumExecutorThreadPoolSize(5);
         conf.setHttpMaxRequestHeaderSize(20000);
 
+        conf.setBrokerClientTlsEnabled(true);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+                "tlsCertFile:" + getTlsFileForClient("admin.cert")
+                        + ",tlsKeyFile:" + getTlsFileForClient("admin.key-pk8"));
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
+
         super.internalSetup();
 
         // start proxy service

@@ -131,7 +131,7 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topicName);
     }
 
-    @Test(dataProvider = "unloadCases")
+    @Test(dataProvider = "unloadCases", invocationCount = 20)
     public void testMultiConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
                                   int ackMsgCount) throws Exception {
         if (subType == Exclusive){

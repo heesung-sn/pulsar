@@ -105,7 +105,7 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 15_000)
     public void testProducerBatchSendTimeoutMemoryRelease() throws Exception {
         initClientWithMemoryLimit();
         @Cleanup

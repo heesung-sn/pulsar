@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.data.Stat;
 import org.testng.Assert;
@@ -60,6 +61,8 @@ public class AdvertisedAddressTest {
         config.setManagedLedgerDefaultAckQuorum(1);
         config.setManagedLedgerMaxEntriesPerLedger(5);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        // TODO: RCA New Load Balancer failure
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         pulsar = new PulsarService(config);
         pulsar.start();
     }

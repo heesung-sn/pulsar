@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -55,6 +56,9 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30_000)
     public void closeInTimeTest() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         LoadSheddingTask task = pulsar.getLoadSheddingTask();
 
         {

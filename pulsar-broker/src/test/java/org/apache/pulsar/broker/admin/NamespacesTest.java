@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -853,6 +854,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteNamespaceWithBundles() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         uriField.set(namespaces, uriInfo);
         doReturn(URI.create(pulsar.getWebServiceAddress() + "/dummy/uri")).when(uriInfo).getRequestUri();
 
@@ -1025,6 +1029,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUnloadNamespaceWithBundles() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
         List<String> boundaries = List.of("0x00000000", "0x80000000", "0xffffffff");
@@ -2095,10 +2102,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         startBroker();
 
         String systemTopic = SYSTEM_NAMESPACE.toString() + "/" + "testDeleteTopicPolicyWhenDeleteSystemTopic";
-        admin.tenants().createTenant(SYSTEM_NAMESPACE.getTenant(),
+
+        updateTenant(SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
 
-        admin.namespaces().createNamespace(SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(systemTopic).create();

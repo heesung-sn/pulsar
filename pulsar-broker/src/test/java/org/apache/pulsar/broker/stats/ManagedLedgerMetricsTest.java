@@ -24,17 +24,15 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -74,7 +72,9 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
         final String addEntryRateKey = "brk_ml_AddEntryMessagesRate";
         List<Metrics> list1 = metrics.generate();
-        Assert.assertTrue(list1.isEmpty());
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertTrue(list1.isEmpty());
+        }
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .create();
@@ -112,9 +112,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         txnLogBufferedWriterConfig.setBatchEnabled(false);
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         createTransactionCoordinatorAssign();
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);

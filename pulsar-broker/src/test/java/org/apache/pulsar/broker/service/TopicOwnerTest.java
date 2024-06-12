@@ -33,6 +33,7 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -80,6 +81,7 @@ public class TopicOwnerTest {
         for (int i = 0; i < BROKER_COUNT; i++) {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setClusterName("my-cluster");

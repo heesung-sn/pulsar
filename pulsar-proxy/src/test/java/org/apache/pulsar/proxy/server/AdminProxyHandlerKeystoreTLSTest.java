@@ -70,6 +70,18 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         conf.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         conf.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
 
+        conf.setBrokerClientTlsEnabled(true);
+        conf.setBrokerClientTlsEnabledWithKeyStore(true);
+        conf.setBrokerClientTlsTrustStoreType(KEYSTORE_TYPE);
+        conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
+        conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
+        conf.setBrokerClientAuthenticationParameters(String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
+                KEYSTORE_TYPE, CLIENT_KEYSTORE_FILE_PATH, CLIENT_KEYSTORE_PW));
+        Set<String> providers = new HashSet<>();
+        providers.add(AuthenticationProviderTls.class.getName());
+        conf.setAuthenticationProviders(providers);
+
         super.internalSetup();
 
         proxyConfig.setWebServicePort(Optional.of(0));
@@ -83,24 +95,19 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         proxyConfig.setTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
         proxyConfig.setTlsKeyStorePassword(BROKER_KEYSTORE_PW);
         proxyConfig.setTlsTrustStoreType(KEYSTORE_TYPE);
-        proxyConfig.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
-        proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
+        proxyConfig.setTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
+        proxyConfig.setTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
 
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setBrokerClientTlsEnabledWithKeyStore(true);
-        proxyConfig.setBrokerClientTlsKeyStoreType(KEYSTORE_TYPE);
-        proxyConfig.setBrokerClientTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
-        proxyConfig.setBrokerClientTlsKeyStorePassword(BROKER_KEYSTORE_PW);
         proxyConfig.setBrokerClientTlsTrustStoreType(KEYSTORE_TYPE);
         proxyConfig.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
         proxyConfig.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
-        Set<String> providers = new HashSet<>();
-        providers.add(AuthenticationProviderTls.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
-                KEYSTORE_TYPE, BROKER_KEYSTORE_FILE_PATH, BROKER_KEYSTORE_PW));
+                KEYSTORE_TYPE, CLIENT_KEYSTORE_FILE_PATH, CLIENT_KEYSTORE_PW));
         proxyConfig.setClusterName(configClusterName);
 
         resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),

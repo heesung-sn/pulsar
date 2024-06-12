@@ -180,6 +180,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         superUserRoles.add("Proxy");
         conf.setSuperUserRoles(superUserRoles);
 
+        conf.setBrokerClientTlsEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);

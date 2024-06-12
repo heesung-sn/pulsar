@@ -65,7 +65,6 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -134,9 +133,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1, 4);
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         pulsarServiceList.get(0).getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()

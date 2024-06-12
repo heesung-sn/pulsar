@@ -36,6 +36,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -106,6 +107,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     protected void doInitConf() throws Exception {
         super.doInitConf();
         this.conf.setClusterName("localhost");
+        // TODO: RCA Extensible Load Manager failure
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s:%s,internal:pulsar+ssl://%s:%s",
                 brokerAddress.getHostString(), brokerAddress.getPort(),
                 brokerSslAddress.getHostString(), brokerSslAddress.getPort()));

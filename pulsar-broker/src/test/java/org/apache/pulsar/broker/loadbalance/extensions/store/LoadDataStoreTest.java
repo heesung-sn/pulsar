@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 
-import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -31,7 +30,6 @@ import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -56,9 +54,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
         createDefaultTenantInfo();
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(configClusterName)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
     }
 
     @AfterClass

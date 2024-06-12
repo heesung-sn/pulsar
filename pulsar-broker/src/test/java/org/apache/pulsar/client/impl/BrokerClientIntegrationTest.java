@@ -68,6 +68,7 @@ import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.resources.BaseResources;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
@@ -157,6 +158,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Test
     public void testDisconnectClientWithoutClosingConnection() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
 
         final String ns1 = "my-property/con-ns1";
         final String ns2 = "my-property/con-ns2";

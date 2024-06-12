@@ -43,11 +43,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -136,10 +134,8 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         // Setup namespaces
         admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        setupSystemNamespace();
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()

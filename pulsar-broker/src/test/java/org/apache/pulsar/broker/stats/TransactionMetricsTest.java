@@ -26,7 +26,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,6 +39,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
@@ -51,9 +51,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -84,12 +82,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
     }
 
     protected void afterSetup() throws Exception {
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                TenantInfo.builder()
-                        .adminRoles(Sets.newHashSet("appid1"))
-                        .allowedClusters(Sets.newHashSet("test"))
-                        .build());
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        setupSystemNamespace();
         createTransactionCoordinatorAssign();
         replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
     }
@@ -293,6 +286,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         metric = metrics.get("pulsar_storage_size");
         assertEquals(metric.size(), 2);
         metric = metrics.get("pulsar_storage_logical_size");

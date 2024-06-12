@@ -217,7 +217,6 @@ public class ClusterMigrationTest {
         log.info("--- ReplicatorTestBase::setup completed ---");
 
     }
-
     protected void updateTenantInfo(PulsarAdmin admin, String tenant, TenantInfoImpl tenantInfo) throws Exception {
         if (!admin.tenants().getTenants().contains(tenant)) {
             admin.tenants().createTenant(tenant, tenantInfo);
@@ -225,7 +224,6 @@ public class ClusterMigrationTest {
             admin.tenants().updateTenant(tenant, tenantInfo);
         }
     }
-
     @AfterMethod(alwaysRun = true, timeOut = 300000)
     protected void cleanup() throws Exception {
         log.info("--- Shutting down ---");

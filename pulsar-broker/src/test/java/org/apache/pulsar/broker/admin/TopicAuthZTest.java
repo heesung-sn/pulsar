@@ -81,7 +81,7 @@ public class TopicAuthZTest extends AuthZTest {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
-        this.superUserAdmin =PulsarAdmin.builder()
+        this.superUserAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
                 .build();
@@ -92,7 +92,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(TENANT_ADMIN_TOKEN))
                 .build();
-
+        setupSystemNamespace(tenantInfo);
     }
 
     @SneakyThrows

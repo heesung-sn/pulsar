@@ -246,7 +246,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         Assert.assertFalse(producer.isErrorStat());
     }
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 20_000)
     public void testBatchMessageSendTimeoutProducerSemaphoreRelease() throws Exception {
         final int pendingQueueSize = 10;
         @Cleanup

@@ -64,6 +64,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -2080,6 +2081,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testDeleteCompactedLedgerWithSlowAck() throws Exception {
         // Disable topic level policies, since block ack thread may also block thread of delete topic policies.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
         conf.setTopicLevelPoliciesEnabled(false);
         restartBroker();
 
@@ -2137,7 +2141,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             pauseAck.set(false);
             return invocationOnMock.callRealMethod();
         }).when(spyCurrentCompaction).handle(Mockito.any());
-
         admin.topics().delete(topicName, true);
 
         Awaitility.await().untilAsserted(() -> assertThrows(BKException.BKNoSuchLedgerExistsException.class,

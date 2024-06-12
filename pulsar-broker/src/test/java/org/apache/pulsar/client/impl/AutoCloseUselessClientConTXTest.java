@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +34,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -83,13 +81,8 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
             if (!admin.clusters().getClusters().contains("test")){
                 admin.clusters().createCluster("test", ClusterData.builder().build());
             }
-            if (!admin.tenants().getTenants().contains("pulsar")){
-                admin.tenants().createTenant("pulsar",
-                        TenantInfo.builder().allowedClusters(Collections.singleton("test")).build());
-            }
-            if (!admin.namespaces().getNamespaces("pulsar").contains("pulsar/system")) {
-                admin.namespaces().createNamespace("pulsar/system");
-            }
+
+            setupSystemNamespace();
 
             if (conf.isTransactionCoordinatorEnabled()) {
                 if (!pulsar.getPulsarResources()

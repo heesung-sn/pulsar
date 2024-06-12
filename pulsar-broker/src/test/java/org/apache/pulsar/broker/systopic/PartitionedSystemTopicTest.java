@@ -146,8 +146,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
                 .adminRoles(Sets.newHashSet("admin"))
                 .allowedClusters(Sets.newHashSet("test"))
                 .build();
-        admin.tenants().createTenant("pulsar", tenantInfo);
-        admin.namespaces().createNamespace("pulsar/system", 2);
+        setupSystemNamespace(tenantInfo);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic("pulsar/system/__topic-1").create();
         producer.send("test".getBytes(StandardCharsets.UTF_8));

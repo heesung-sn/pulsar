@@ -84,6 +84,9 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         // that the proxy might forward.
         properties.setProperty("tokenAllowedClockSkewSeconds", "2");
         conf.setProperties(properties);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        conf.setBrokerClientAuthenticationParameters(
+                AuthTokenUtils.createToken(SECRET_KEY, "Admin", Optional.empty()));
 
         conf.setClusterName(CLUSTER_NAME);
         conf.setNumExecutorThreadPoolSize(5);

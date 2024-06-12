@@ -28,6 +28,7 @@ import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -163,6 +164,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         useStaticPorts = true;
         conf.setAdvertisedListeners("internal:pulsar://gateway:6650, internal:pulsar+ssl://gateway:6651");
         conf.setInternalListenerName("internal");
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         setup();
         assertEquals(pulsar.getAdvertisedAddress(), "localhost");
         assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://gateway:6651");

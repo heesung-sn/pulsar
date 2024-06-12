@@ -57,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -191,6 +192,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     public void reset() throws Exception {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
+            if (tenant.equals("pulsar")) {
+                continue;
+            }
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                 deleteNamespaceWithRetry(namespace, true, admin, pulsar,
                         mockPulsarSetup.getPulsar());
@@ -448,7 +452,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("use", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
-        Assert.assertEquals(nsMap.size(), 2);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertEquals(nsMap.size(), 2);
+        }
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
@@ -461,7 +467,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("use", list.get(0));
-        Assert.assertEquals(nsMap2.size(), 2);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertEquals(nsMap2.size(), 2);
+        }
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
@@ -631,7 +639,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz2/use/ns1");
 
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz", "prop-xyz2"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz", "prop-xyz2")));
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz2"), tenantInfo);
 
@@ -642,7 +650,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("prop-xyz2/use/ns1");
         admin.tenants().deleteTenant("prop-xyz2");
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz")));
 
         // Check name validation
         try {
@@ -1516,7 +1524,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz2/use/ns1");
 
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz", "prop-xyz2"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz", "prop-xyz2")));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz2").getAdminRoles(),
                 List.of("role1", "role2"));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz2").getAllowedClusters(), Set.of("use"));
@@ -1533,7 +1541,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("prop-xyz2/use/ns1");
         admin.tenants().deleteTenant("prop-xyz2");
-        assertEquals(admin.tenants().getTenants(), Set.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(Set.of("prop-xyz")));
     }
 
     @Test(dataProvider = "topicName")

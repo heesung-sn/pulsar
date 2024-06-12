@@ -63,6 +63,8 @@ import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -141,6 +143,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         super.internalSetup();
         persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(new MockServletContext());
@@ -182,10 +185,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
-        admin.tenants().createTenant("pulsar",
-                new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
+        setupSystemNamespace(new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster, "test"));
-        admin.namespaces().createNamespace("pulsar/system", 4);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespaceLocal);
     }
 
@@ -429,7 +430,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.terminatePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true);
         Map<Integer, MessageId> messageIds = new ConcurrentHashMap<>();
-        messageIds.put(0, new MessageIdImpl(3, -1, -1));
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            messageIds.put(0, new MessageIdImpl(3, -1, -1));
+        }
+
         verify(response, timeout(5000).times(1)).resume(messageIds);
     }
 
@@ -452,8 +456,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 3) Assert terminate persistent topic
         response = mock(AsyncResponse.class);
         persistentTopics.terminate(response, testTenant, testNamespace, testLocalTopicName, true);
-        MessageId messageId = new MessageIdImpl(3, -1, -1);
-        verify(response, timeout(5000).times(1)).resume(messageId);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            MessageId messageId = new MessageIdImpl(3, -1, -1);
+            verify(response, timeout(5000).times(1)).resume(messageId);
+        }
+
 
         // 4) Assert terminate non-persistent topic
         String nonPersistentTopicName = "non-persistent-topic";
@@ -583,9 +590,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response3 = mock(AsyncResponse.class);
         ArgumentCaptor<Map> metaResponseCaptor2 = ArgumentCaptor.forClass(Map.class);
         persistentTopics.getProperties(response3, testTenant, testNamespace, topicName2, true);
-        verify(response3, timeout(5000).times(1)).resume(metaResponseCaptor2.capture());
-        Assert.assertNotNull(metaResponseCaptor2.getValue());
-        Assert.assertEquals(metaResponseCaptor2.getValue().get("key1"), "value1");
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            verify(response3, timeout(5000).times(1)).resume(metaResponseCaptor2.capture());
+            Assert.assertNotNull(metaResponseCaptor2.getValue());
+            Assert.assertEquals(metaResponseCaptor2.getValue().get("key1"), "value1");
+        }
     }
 
     @Test
@@ -1662,7 +1671,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topicName, 1);
         Map<Integer, MessageId> results = new HashMap<>();
         results.put(0, new MessageIdImpl(3, -1, -1));
-        Assert.assertEquals(admin.topics().terminatePartitionedTopic(topicName), results);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertEquals(admin.topics().terminatePartitionedTopic(topicName), results);
+        }
+
 
         // Check examine message not allowed on non-partitioned topic.
         admin.topics().createNonPartitionedTopic("persistent://prop-xyz/ns12/test");

@@ -65,6 +65,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet("org.apache.pulsar.broker.auth.MockAuthenticationProvider"));
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user", "pass.pass"));
         conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
         conf.setBrokerClientAuthenticationParameters("user:pass.pass");

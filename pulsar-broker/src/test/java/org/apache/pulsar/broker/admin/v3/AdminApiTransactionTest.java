@@ -109,8 +109,9 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant("pulsar", tenantInfo);
-        admin.namespaces().createNamespace("pulsar/system", Set.of("test"));
+
+        setupSystemNamespace();
+        updateTenant("pulsar", tenantInfo);
         admin.tenants().createTenant("public", tenantInfo);
         admin.namespaces().createNamespace("public/default", Set.of("test"));
     }

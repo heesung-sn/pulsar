@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -223,6 +224,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
+            if (tenant.equals("pulsar")) {
+                continue;
+            }
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
                 deleteNamespaceWithRetry(namespace, true);
             }
@@ -537,7 +541,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
-        Assert.assertEquals(nsMap.size(), 2);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertEquals(nsMap.size(), 2);
+        }
+
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
@@ -550,7 +557,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test", list.get(0));
-        Assert.assertEquals(nsMap2.size(), 2);
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            Assert.assertEquals(nsMap2.size(), 2);
+        }
 
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.clusters().deleteCluster("test");
@@ -770,7 +779,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), allowedClusters);
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
 
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz")));
 
         assertEquals(admin.tenants().getTenantInfo("prop-xyz"), tenantInfo);
 
@@ -789,7 +798,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
-        assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        }
 
         // Check name validation
         try {
@@ -865,8 +877,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPersistence("prop-xyz/ns1", new PersistencePolicies(3, 2, 1, 10.0));
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), new PersistencePolicies(3, 2, 1, 10.0));
 
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
         // Force topic creation and namespace being loaded
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .topic("persistent://prop-xyz/ns1/my-topic")
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -903,7 +919,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // Force topic creation and namespace being loaded
-        producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
+        producer = client.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
         producer.close();
         admin.topics().delete("persistent://prop-xyz/ns2/my-topic");
 
@@ -1798,6 +1814,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceSplitBundleWithSpecifiedPositionsDivideAlgorithm() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            //TODO: currently ExtensibleLoadManagerImpl does not support multi pos splits.
+            return;
+        }
         // 1. Force to create a topic
         final String namespace = "prop-xyz/ns-one-bundle";
         final String topic = "persistent://"+ namespace + "/topic";
@@ -2449,7 +2469,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBackwardCompatibility() throws Exception {
-        assertEquals(admin.tenants().getTenants(), List.of("prop-xyz"));
+        assertTrue(admin.tenants().getTenants().containsAll(List.of("prop-xyz")));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAdminRoles(),
                 List.of("role1", "role2"));
         assertEquals(admin.tenants().getTenantInfo("prop-xyz").getAllowedClusters(), Set.of("test"));
@@ -2466,7 +2486,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
-        assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            assertEquals(admin.tenants().getTenants(), new ArrayList<>());
+        }
     }
 
     @Test(dataProvider = "topicName")

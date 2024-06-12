@@ -150,7 +150,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             admin.tenants().createTenant("tenant1",
                                          new TenantInfoImpl(Set.of("foobar"),
                                                         Set.of("test")));
-            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
+            Assert.assertTrue(admin.tenants().getTenants().containsAll(Set.of("tenant1")));
         }
     }
 
@@ -390,11 +390,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                                                         Set.of("test")));
         }
         WebTarget root = buildWebClient("superproxy");
-        Assert.assertEquals(Set.of("tenant1"),
-                            root.path("/admin/v2/tenants")
-                            .request(MediaType.APPLICATION_JSON)
-                            .header("X-Original-Principal", "admin")
-                            .get(new GenericType<List<String>>() {}));
+        Assert.assertTrue(
+                root.path("/admin/v2/tenants")
+                        .request(MediaType.APPLICATION_JSON)
+                        .header("X-Original-Principal", "admin")
+                        .get(new GenericType<List<String>>() {
+                        }).contains("tenant1"));
     }
 
     @Test
@@ -508,7 +509,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 }
             }, 5, 1000);
             Assert.assertTrue(success.booleanValue());
-            Assert.assertEquals(Set.of("tenantX"), admin.tenants().getTenants());
+            Assert.assertTrue(admin.tenants().getTenants().contains("tenantX"));
         } finally {
             Files.delete(keyFile.toPath());
         }

@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -46,6 +47,7 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
     public void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
 
 
         this.enableBrokerInterceptor = true;

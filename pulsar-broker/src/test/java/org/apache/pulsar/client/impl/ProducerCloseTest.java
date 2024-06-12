@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -139,7 +140,13 @@ public class ProducerCloseTest extends ProducerConsumerBase {
                 .getTopicReference(TopicName.get(topic).getPartitionedTopicName());
         Assert.assertTrue(topicOptional.isPresent());
         topicOptional.get().close(true).get();
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(producer.getState(), HandlerState.State.Connecting));
+        Awaitility.await().untilAsserted(() -> {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+                Assert.assertEquals(producer.getState(), HandlerState.State.Ready);
+            } else {
+                Assert.assertEquals(producer.getState(), HandlerState.State.Connecting);
+            }
+        });
         if (isAsyncSend) {
             producer.newMessage().value("test".getBytes()).sendAsync().get();
         } else {

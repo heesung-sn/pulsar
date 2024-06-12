@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -110,6 +111,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration conf = super.getDefaultConf();
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being

@@ -70,7 +70,6 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
     private final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     private final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -90,7 +89,6 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
-        conf.setAdvertisedAddress("localhost");
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
@@ -99,8 +97,9 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_BROKER_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_BROKER_KEY_FILE_PATH);
-
+                "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
+        conf.setBrokerClientTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH);
+        conf.setBrokerClientTlsEnabled(true);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
