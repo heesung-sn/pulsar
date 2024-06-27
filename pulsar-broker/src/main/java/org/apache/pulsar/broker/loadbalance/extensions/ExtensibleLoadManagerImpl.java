@@ -763,7 +763,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @VisibleForTesting
     synchronized void playLeader() {
-        log.info("This broker:{} is setting the role from {} to {}",
+        log.info("This broker:{} is setting the role from {} to {}.",
                 pulsar.getBrokerId(), role, Leader);
         int retry = 0;
         boolean becameFollower = false;
