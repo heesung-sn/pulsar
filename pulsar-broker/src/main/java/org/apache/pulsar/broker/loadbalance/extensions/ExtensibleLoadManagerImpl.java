@@ -840,6 +840,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     @VisibleForTesting
     synchronized void playLeader() {
+        if (role == Leader) {
+            log.info("This broker:{} has been elected as the leader again.", pulsar.getBrokerId());
+            return;
+        }
         log.info("This broker:{} is setting the role from {} to {}",
                 pulsar.getBrokerId(), role, Leader);
         int retry = 0;
@@ -903,6 +907,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
                 unloadScheduler.close();
                 serviceUnitStateChannel.cancelOwnershipMonitor();
+                closeInternalTopics();
                 brokerLoadDataStore.init();
                 topBundlesLoadDataStore.close();
                 topBundlesLoadDataStore.startProducer();
