@@ -56,6 +56,10 @@ public class TableViewImpl<T> implements TableView<T> {
     private final CompletableFuture<Reader<T>> reader;
 
     private final List<BiConsumer<String, T>> listeners;
+
+    private final List<BiConsumer<String, T>> existingMessageListeners;
+
+
     private final ReentrantLock listenersMutex;
     private final boolean isPersistentTopic;
     private TopicCompactionStrategy<T> compactionStrategy;
@@ -86,6 +90,7 @@ public class TableViewImpl<T> implements TableView<T> {
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();
+        this.existingMessageListeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
         this.compactionStrategy =
                 TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
@@ -108,6 +113,17 @@ public class TableViewImpl<T> implements TableView<T> {
         }
 
         readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
+        if (conf.getExistingMessageListeners() != null && conf.getExistingMessageListeners().length > 0) {
+            for (BiConsumer<String, T> listener : conf.getExistingMessageListeners()) {
+                existingMessageListeners.add(listener);
+            }
+        }
+
+        if (conf.getMessageListeners() != null && conf.getMessageListeners().length > 0) {
+            for (BiConsumer<String, T> listener : conf.getMessageListeners()) {
+                listeners.add(listener);
+            }
+        }
 
         this.reader = readerBuilder.createAsync();
     }
@@ -202,7 +218,7 @@ public class TableViewImpl<T> implements TableView<T> {
         }
     }
 
-    private void handleMessage(Message<T> msg) {
+    private void handleMessage(Message<T> msg, boolean handleExistingMessage) {
         lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
         try {
             if (msg.hasKey()) {
@@ -237,6 +253,10 @@ public class TableViewImpl<T> implements TableView<T> {
                         } else {
                             data.put(key, cur);
                         }
+
+                        List<BiConsumer<String, T>> listeners =
+                                handleExistingMessage && !existingMessageListeners.isEmpty() ?
+                                        this.existingMessageListeners : this.listeners;
 
                         for (BiConsumer<String, T> listener : listeners) {
                             try {
@@ -357,7 +377,7 @@ public class TableViewImpl<T> implements TableView<T> {
                                   messagesRead.incrementAndGet();
                                   String topicName = msg.getTopicName();
                                   MessageId messageId = msg.getMessageId();
-                                  handleMessage(msg);
+                                  handleMessage(msg, true);
                                   if (!checkFreshTask(maxMessageIds, future, messageId, topicName)) {
                                       readAllExistingMessages(reader, future, startTime,
                                               messagesRead, maxMessageIds);
@@ -389,7 +409,7 @@ public class TableViewImpl<T> implements TableView<T> {
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
-                    handleMessage(msg);
+                    handleMessage(msg, false);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
