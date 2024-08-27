@@ -42,7 +42,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
@@ -69,7 +68,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableObject;
-import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -86,39 +84,27 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @Slf4j
 public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
-    public static final String TOPIC = TopicName.get(
-            TopicDomain.persistent.value(),
-            SYSTEM_NAMESPACE,
-            "loadbalancer-service-unit-state").toString();
 
-    public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
     public static final long VERSION_ID_INIT = 1; // initial versionId
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
-    private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
@@ -129,8 +115,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final StateChangeListeners stateChangeListeners;
     private BrokerRegistry brokerRegistry;
     private LeaderElectionService leaderElectionService;
-    private TableView<ServiceUnitStateData> tableview;
-    private Producer<ServiceUnitStateData> producer;
+    private ServiceUnitStateTableView tableview;
     private ScheduledFuture<?> monitorTask;
     private SessionEvent lastMetadataSessionEvent = SessionReestablished;
     private long lastMetadataSessionEventTimestamp = 0;
@@ -265,6 +250,26 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         doCleanup(brokerId);
     }
 
+
+    private ServiceUnitStateTableView createServiceUnitStateTableView() {
+        ServiceConfiguration conf = pulsar.getConfiguration();
+        ServiceUnitStateTableView tableview;
+        try {
+            tableview = Reflections.createInstance(conf.getLoadManagerServiceUnitStateTableViewClassName(),
+                    ServiceUnitStateTableView.class, Thread.currentThread().getContextClassLoader());
+            log.info("Created service unit state tableview:{}", tableview.getClass().getCanonicalName());
+        } catch (Exception e) {
+            log.error("Error when trying to service unit state tableview: {}. Using {} instead.",
+                    conf.getLoadManagerServiceUnitStateTableViewClassName(),
+                    ServiceUnitStateTableViewImpl.class.getCanonicalName(),
+                    e);
+            tableview = new ServiceUnitStateTableViewImpl();
+
+        }
+        tableview.init(pulsar, this::handleEvent, this::handleExisting, this::handleSkippedEvent);
+        return tableview;
+    }
+
     public synchronized void start() throws PulsarServerException {
         if (!validateChannelState(LeaderElectionServiceStarted, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
@@ -284,55 +289,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             this.channelState = LeaderElectionServiceStarted;
 
-            if (producer != null) {
-                producer.close();
-                if (debug) {
-                    log.info("Closed the channel producer.");
-                }
-            }
+            tableview = createServiceUnitStateTableView();
+            tableview.start();
 
-            PulsarClusterMetadataSetup.createTenantIfAbsent
-                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(), config.getClusterName());
-
-            PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName(),
-                            config.getDefaultNumberOfNamespaceBundles());
-
-            ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
-
-            producer = pulsar.getClient().newProducer(schema)
-                    .enableBatching(true)
-                    .compressionType(MSG_COMPRESSION_TYPE)
-                    .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
-                    .blockIfQueueFull(true)
-                    .topic(TOPIC)
-                    .create();
-
-            if (debug) {
-                log.info("Successfully started the channel producer.");
-            }
-
-            if (tableview != null) {
-                tableview.close();
-                if (debug) {
-                    log.info("Closed the channel tableview.");
-                }
-            }
-            tableview = pulsar.getClient().newTableViewBuilder(schema)
-                    .topic(TOPIC)
-                    .loadConf(Map.of(
-                            "topicCompactionStrategyClassName",
-                            ServiceUnitStateCompactionStrategy.class.getName()))
-                    .create();
-            tableview.listen(this::handleEvent);
-            tableview.forEach(this::handleExisting);
-            var strategy = (ServiceUnitStateCompactionStrategy) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
-            if (strategy == null) {
-                String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
-                log.error(err);
-                throw new IllegalStateException(err);
-            }
-            strategy.setSkippedMsgHandler((key, value) -> handleSkippedEvent(key));
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
@@ -378,19 +337,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         boolean debug = debug();
         try {
             leaderElectionService = null;
-            if (tableview != null) {
-                tableview.close();
-                tableview = null;
-                if (debug) {
-                    log.info("Successfully closed the channel tableview.");
-                }
-            }
-
-            if (producer != null) {
-                producer.close();
-                producer = null;
-                log.info("Successfully closed the channel producer.");
-            }
+            tableview.close();
 
             if (brokerRegistry != null) {
                 brokerRegistry = null;
@@ -789,7 +736,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleSkippedEvent(String serviceUnit) {
+    private void handleSkippedEvent(String serviceUnit, ServiceUnitStateData cur) {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);
@@ -909,26 +856,34 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log(null, serviceUnit, null, null);
     }
 
-    private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        CompletableFuture<MessageId> future = new CompletableFuture<>();
-        producer.newMessage()
-                .key(serviceUnit)
-                .value(data)
-                .sendAsync()
-                .whenComplete((messageId, e) -> {
+    private CompletableFuture<Void> pubAsync(String serviceUnit, ServiceUnitStateData data) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        tableview.put(serviceUnit, data)
+                .whenComplete((__, e) -> {
                     if (e != null) {
                         log.error("Failed to publish the message: serviceUnit:{}, data:{}",
                                 serviceUnit, data, e);
                         future.completeExceptionally(e);
                     } else {
-                        future.complete(messageId);
+                        future.complete(null);
                     }
                 });
         return future;
     }
 
-    private CompletableFuture<MessageId> tombstoneAsync(String serviceUnit) {
-        return pubAsync(serviceUnit, null);
+    private CompletableFuture<Void> tombstoneAsync(String serviceUnit) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        tableview.remove(serviceUnit)
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        log.error("Failed to tombstone the serviceUnit:{}}",
+                                serviceUnit, e);
+                        future.completeExceptionally(e);
+                    } else {
+                        future.complete(null);
+                    }
+                });
+        return future;
     }
 
     private boolean isTargetBroker(String broker) {
@@ -1424,7 +1379,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
         } catch (Exception e) {
             log.error("Failed to flush the in-flight non-system bundle override messages.", e);
         }
@@ -1448,7 +1403,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
         } catch (Exception e) {
             log.error("Failed to flush the in-flight system bundle override messages.", e);
         }
@@ -1572,7 +1527,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
 
         try {
-            producer.flushAsync().get(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS, MILLISECONDS);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
         } catch (Exception e) {
             log.error("Failed to flush the in-flight messages.", e);
         }

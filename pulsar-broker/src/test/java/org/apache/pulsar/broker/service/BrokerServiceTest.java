@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -81,7 +82,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -1757,8 +1757,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testIsSystemTopicAllowAutoTopicCreationAsync() throws Exception {
         BrokerService brokerService = pulsar.getBrokerService();
-        assertFalse(brokerService.isAllowAutoTopicCreationAsync(
-                ServiceUnitStateChannelImpl.TOPIC).get());
+        assertFalse(brokerService.isAllowAutoTopicCreationAsync(TOPIC).get());
         assertTrue(brokerService.isAllowAutoTopicCreationAsync(
                 "persistent://pulsar/system/my-system-topic").get());
     }

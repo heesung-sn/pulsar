@@ -26,10 +26,13 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.Test;
 
 public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
@@ -65,5 +68,44 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
 
         assertNotEquals(seq1, seq2);
         assertTrue(n1 < n2);
+    }
+
+    @Test(dataProvider = "impl", invocationCount = 100)
+    public void readYourWrites(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        assertTrue(store instanceof ZKMetadataStore);
+        MetadataCache<MetadataCacheTest.MyClass> objCache = store.getMetadataCache(MetadataCacheTest.MyClass.class);
+
+        String key1 = "/mytest/key-1";
+        String key2 = "/mytest/key-2";
+        try {
+            assertEquals(objCache.getIfCached(key1), Optional.empty());
+            assertEquals(objCache.get(key1).join(), Optional.empty());
+
+            MetadataCacheTest.MyClass value1 = new MetadataCacheTest.MyClass("a", 1);
+            store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L)).join();
+
+
+            MetadataCacheTest.MyClass value2 = new MetadataCacheTest.MyClass("b", 2);
+            store.put(key2, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2), Optional.of(-1L)).join();
+
+            assertEquals(objCache.get(key1).join(), Optional.of(value1));
+            assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
+
+            assertEquals(objCache.get(key2).join(), Optional.of(value2));
+            assertEqualsAndRetry(() -> objCache.getIfCached(key2), Optional.of(value2), Optional.empty());
+
+            objCache.delete(key2).join();
+
+            assertEquals(objCache.get(key2).join(), Optional.empty());
+            System.out.println("###:" + store.getChildren("/mytest").get());
+            assertEquals(store.getChildren("/mytest").get().size(), 1);
+        } finally {
+            store.deleteIfExists(key1, Optional.of(-1L)).join();
+            store.deleteIfExists(key2, Optional.of(-1L)).join();
+        }
+
     }
 }

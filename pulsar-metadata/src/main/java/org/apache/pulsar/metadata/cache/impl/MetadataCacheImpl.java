@@ -25,7 +25,9 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -267,6 +269,18 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public void refresh(String path) {
         // Refresh object of path if only it is cached before.
         objCache.asMap().computeIfPresent(path, (oldKey, oldValue) -> readValueFromStore(path));
+    }
+
+    @Override
+    public Map<String, T> asMap() {
+        Map<String, T> map = new HashMap<>();
+        for (var e : objCache.synchronous().asMap().entrySet()) {
+            if (e != null && e.getValue().isPresent()
+                    && e.getValue().get().getValue() != null) {
+                map.put(e.getKey(), e.getValue().get().getValue());
+            }
+        }
+        return map;
     }
 
     @VisibleForTesting

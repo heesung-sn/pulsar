@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -55,6 +56,7 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 @Slf4j
 public class OxiaMetadataStore extends AbstractMetadataStore {
 
+    @Getter
     private final AsyncOxiaClient client;
 
     private final String identity;
@@ -98,7 +100,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     private void init() {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
-
         client.notifications(this::notificationCallback);
         super.registerSyncListener(synchronizer);
     }
@@ -303,6 +304,13 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         super.close();
     }
 
+    @Override
+    protected boolean isValidKey(String key) {
+        return StringUtils.isNotBlank(key)
+                && !key.endsWith("/");
+    }
+
+
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return synchronizer;
     }
@@ -314,4 +322,9 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private record PathWithPutResult(String path, PutResult result) {}
+
+    @Override
+    public CompletableFuture<List<String>> list() {
+        return client.list("", "\uFFFF");
+    }
 }

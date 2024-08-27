@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.api;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -159,4 +160,6 @@ public interface MetadataCache<T> {
      * @param path the path of the object in the metadata store
      */
     void refresh(String path);
+
+    Map<String, T> asMap();
 }

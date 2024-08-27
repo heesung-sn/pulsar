@@ -30,6 +30,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Unload;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.ConnectionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.Reconnected;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
@@ -948,9 +949,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
 
         var threshold = admin.topicPolicies()
-                .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC);
+                .getCompactionThreshold(TOPIC);
         admin.topicPolicies()
-                .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, 0);
+                .setCompactionThreshold(TOPIC, 0);
 
         try {
             Awaitility.await()
@@ -959,7 +960,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     .untilAsserted(() -> {
                         channel1.publishAssignEventAsync(bundle, brokerId1);
                         verify(compactor, times(1))
-                                .compact(eq(ServiceUnitStateChannelImpl.TOPIC), any());
+                                .compact(eq(TOPIC), any());
                     });
 
 
@@ -976,7 +977,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
             if (threshold != null) {
                 admin.topicPolicies()
-                        .setCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, threshold);
+                        .setCompactionThreshold(TOPIC, threshold);
             }
         }
 

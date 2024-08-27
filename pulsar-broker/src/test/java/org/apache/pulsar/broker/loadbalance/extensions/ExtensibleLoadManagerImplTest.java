@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelTest.overrideTableView;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Bandwidth;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.MsgRate;
@@ -155,12 +156,12 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     @Test
     public void testAssignInternalTopic() throws Exception {
         Optional<BrokerLookupData> brokerLookupData1 = primaryLoadManager.assign(
-                Optional.of(TopicName.get(ServiceUnitStateChannelImpl.TOPIC)),
-                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get(),
+                Optional.of(TopicName.get(TOPIC)),
+                getBundleAsync(pulsar1, TopicName.get(TOPIC)).get(),
                 LookupOptions.builder().build()).get();
         Optional<BrokerLookupData> brokerLookupData2 = secondaryLoadManager.assign(
-                Optional.of(TopicName.get(ServiceUnitStateChannelImpl.TOPIC)),
-                getBundleAsync(pulsar1, TopicName.get(ServiceUnitStateChannelImpl.TOPIC)).get(),
+                Optional.of(TopicName.get(TOPIC)),
+                getBundleAsync(pulsar1, TopicName.get(TOPIC)).get(),
                 LookupOptions.builder().build()).get();
         assertEquals(brokerLookupData1, brokerLookupData2);
         assertTrue(brokerLookupData1.isPresent());
@@ -1866,7 +1867,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                     primaryLoadManager.monitor();
                     secondaryLoadManager.monitor();
                     var threshold = admin.topicPolicies()
-                            .getCompactionThreshold(ServiceUnitStateChannelImpl.TOPIC, false);
+                            .getCompactionThreshold(TOPIC, false);
                     AssertJUnit.assertEquals(5 * 1024 * 1024, threshold == null ? 0 : threshold.longValue());
                 });
     }
