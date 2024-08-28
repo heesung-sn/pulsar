@@ -161,5 +161,5 @@ public interface MetadataCache<T> {
      */
     void refresh(String path);
 
-    Map<String, T> asMap();
+    Map<String, T> asMap(String pathPrefix);
 }

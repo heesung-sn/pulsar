@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Predicate;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -45,15 +44,16 @@ public class MetadataStoreTableView<T> {
     private final MetadataStore store;
     private final MetadataCache<T> cache;
     private final BiPredicate<T, T> conflictResolver;
-    private final Predicate<String> keyFilter;
     private final List<BiConsumer<String, T>> tailMsgListeners;
     private final List<BiConsumer<String, T>> existingMsgListeners;
     private long timeoutDurationInSecs;
+    private String pathPrefix;
+
 
     public MetadataStoreTableView(Class<T> clazz,
                                   @NonNull String serviceAddress,
                                   MetadataStoreConfig metadataStoreConfig,
-                                  Predicate<String> keyFilter,
+                                  String pathPrefix,
                                   BiPredicate<T, T>  conflictResolver,
                                   List<BiConsumer<String, T>> tailMsgListeners,
                                   List<BiConsumer<String, T>> existingMsgListeners,
@@ -64,7 +64,7 @@ public class MetadataStoreTableView<T> {
         this.timeoutDurationInSecs = timeoutDurationInSecs;
 
         store.registerListener(this::handleNotification);
-        this.keyFilter = keyFilter;
+        this.pathPrefix = pathPrefix;
         this.conflictResolver = conflictResolver;
         this.tailMsgListeners = new ArrayList<>();
         if (tailMsgListeners != null) {
@@ -76,6 +76,8 @@ public class MetadataStoreTableView<T> {
             this.existingMsgListeners.addAll(existingMsgListeners);
         }
 
+
+
     }
 
     private void handleNotification(org.apache.pulsar.metadata.api.Notification notification) {
@@ -84,18 +86,19 @@ public class MetadataStoreTableView<T> {
             return;
         }
 
-        String key = notification.getPath();
-        if (!keyFilter.test(key)) {
+        String path = notification.getPath();
+        if (!path.startsWith(pathPrefix)) {
             return;
         }
 
-        cache.get(key).thenAccept(valOpt -> {
+        cache.get(path).thenAccept(valOpt -> {
             var val = valOpt.orElse(null);
             for (var listener : tailMsgListeners) {
                 try {
+                    String key = path.replaceFirst(getPath(""), "");
                     listener.accept(key, val);
                 } catch (Throwable e) {
-                    log.error("Failed to listen tail msg key:{}, val:{}", key, val, e);
+                    log.error("Failed to listen tail msg path:{}, val:{}", path, val, e);
                 }
             }
         });
@@ -103,11 +106,11 @@ public class MetadataStoreTableView<T> {
 
     public void start() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        store.list()
+        store.getChildren(pathPrefix)
                 .thenAccept(keys -> {
             for (var key : keys) {
                 // filter keys for this table view
-                if (!keyFilter.test(key)) {
+                if (!key.startsWith(pathPrefix)) {
                     continue;
                 }
                 try {
@@ -141,25 +144,29 @@ public class MetadataStoreTableView<T> {
         future.join();
     }
 
+    private String getPath(String key) {
+        return pathPrefix + "/" + key;
+    }
+
     public int size() {
-        return cache.asMap().size();
+        return cache.asMap(getPath("")).size();
     }
 
     public boolean isEmpty() {
-        return cache.asMap().isEmpty();
+        return cache.asMap(getPath("")).isEmpty();
     }
 
     public CompletableFuture<Boolean> containsKey(String key) {
-        return cache.exists(key);
+        return cache.exists(getPath(key));
     }
 
     public CompletableFuture<Optional<T>> getAsync(String key) {
-        return cache.get(key);
+        return cache.get(getPath(key));
     }
 
     public T get(String key) {
         try {
-            return cache.get(key).get(timeoutDurationInSecs, TimeUnit.SECONDS).orElse(null);
+            return cache.get(getPath(key)).get(timeoutDurationInSecs, TimeUnit.SECONDS).orElse(null);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -167,7 +174,7 @@ public class MetadataStoreTableView<T> {
 
     public CompletableFuture<Void> put(String key, T value) {
         log.info("putting k:{}, v:{}", key, value);
-        return cache.readModifyUpdateOrCreate(key, (old) -> {
+        return cache.readModifyUpdateOrCreate(getPath(key), (old) -> {
             if (old.isEmpty()) {
                 return value;
             } else {
@@ -183,26 +190,26 @@ public class MetadataStoreTableView<T> {
 
     public CompletableFuture<Void> remove(String key) {
         log.info("removing k:{}", key);
-        return cache.delete(key)
+        return cache.delete(getPath(key))
         .thenApply(__ -> null);
     }
 
 
 
     public Set<Map.Entry<String, T>> entrySet() {
-        return cache.asMap().entrySet();
+        return cache.asMap(getPath("")).entrySet();
     }
 
     public Set<String> keySet() {
-        return cache.asMap().keySet();
+        return cache.asMap(getPath("")).keySet();
     }
 
     public Collection<T> values() {
-        return cache.asMap().values();
+        return cache.asMap(getPath("")).values();
     }
 
     public void forEach(BiConsumer<String, T> action) {
-        cache.asMap().forEach(action);
+        cache.asMap(getPath("")).forEach(action);
     }
 
     @SneakyThrows

@@ -68,6 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -288,6 +289,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.warn("Failed to find the channel leader.");
             }
             this.channelState = LeaderElectionServiceStarted;
+
+            PulsarClusterMetadataSetup.createTenantIfAbsent
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(),
+                            pulsar.getConfiguration().getClusterName());
+
+            PulsarClusterMetadataSetup.createNamespaceIfAbsent
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, pulsar.getConfiguration().getClusterName(),
+                            pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
             tableview.start();

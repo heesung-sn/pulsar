@@ -25,6 +25,7 @@ import io.etcd.jetcd.test.EtcdClusterExtension;
 import io.streamnative.oxia.testcontainers.OxiaContainer;
 import java.io.File;
 import java.net.URI;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -83,10 +84,10 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // Supplier<String> lambda is used for providing the value.
         return new Object[][]{
                 {"ZooKeeper", stringSupplier(() -> zks.getConnectionString())},
-                //{"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
-               // {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
-               // {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
-               // {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
+                {"Memory", stringSupplier(() -> "memory:" + UUID.randomUUID())},
+                {"RocksDB", stringSupplier(() -> "rocksdb:" + createTempFolder())},
+                {"Etcd", stringSupplier(() -> "etcd:" + getEtcdClusterConnectString())},
+                {"Oxia", stringSupplier(() -> "oxia://" + getOxiaServerConnectString())},
         };
     }
 

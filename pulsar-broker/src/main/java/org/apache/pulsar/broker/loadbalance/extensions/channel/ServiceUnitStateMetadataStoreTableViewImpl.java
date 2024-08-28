@@ -35,6 +35,8 @@ import org.apache.pulsar.metadata.impl.MetadataStoreTableView;
 
 @Slf4j
 public class ServiceUnitStateMetadataStoreTableViewImpl implements ServiceUnitStateTableView {
+
+    private static final String PATH_PREFIX = "/service_unit_state";
     private PulsarService pulsar;
     private MetadataStoreTableView<ServiceUnitStateData> tableview;
     private BiConsumer<String, ServiceUnitStateData> tailMsgListener;
@@ -69,28 +71,12 @@ public class ServiceUnitStateMetadataStoreTableViewImpl implements ServiceUnitSt
         tableview = new MetadataStoreTableView<>(ServiceUnitStateData.class,
                 pulsar.getConfiguration().getMetadataStoreUrl(),
                 MetadataStoreConfig.builder().build(),
-                this::filterServiceUnitKey,
+                PATH_PREFIX,
                 this::resolveConflict,
                 List.of(tailMsgListener),
                 List.of(existingMsgListener),
-                pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds());
-    }
-
-    boolean filterServiceUnitKey(String key) {
-        try {
-            int i = key.lastIndexOf('/');
-            checkArgument(i >= 0, "Invalid bundle format:" + key);
-            String range = key.substring(i + 1);
-            checkArgument(range.contains("_"), "Invalid bundle range:" + range);
-            String[] boundaries = range.split("_");
-            checkArgument(boundaries.length == 2, "Invalid boundaries:" + range);
-            Long.decode(boundaries[0]);
-            Long.decode(boundaries[1]);
-        } catch (Exception e) {
-            return false;
-        }
-
-        return true;
+                pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()
+                );
     }
 
     protected boolean resolveConflict(ServiceUnitStateData prev, ServiceUnitStateData cur) {

@@ -261,7 +261,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
-        if (!isValidKey(path)) {
+        if (!isValidPath(path)) {
             metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil
                     .failedFuture(new MetadataStoreException.InvalidPathException(path));
@@ -288,7 +288,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        if (!isValidKey(path)) {
+        if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         return childrenCache.get(path);
@@ -299,7 +299,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        if (!isValidKey(path)) {
+        if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         return existsCache.get(path);
@@ -363,7 +363,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
-        if (!isValidKey(path)) {
+        if (!isValidPath(path)) {
             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -434,7 +434,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return alreadyClosedFailedFuture();
         }
         long start = System.currentTimeMillis();
-        if (!isValidKey(path)) {
+        if (!isValidPath(path)) {
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -582,10 +582,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
 
         return path.substring(0, idx);
-    }
-
-    protected boolean isValidKey(String key) {
-        return isValidPath(key);
     }
 
     /**

@@ -243,8 +243,4 @@ public interface MetadataStore extends AutoCloseable {
     default MetadataCacheConfig getDefaultMetadataCacheConfig() {
         return MetadataCacheConfig.builder().build();
     }
-
-    default CompletableFuture<List<String>> list() {
-        return CompletableFuture.completedFuture(List.of());
-    }
 }

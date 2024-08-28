@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.api.CompressionType;
@@ -72,14 +71,6 @@ public class ServiceUnitStateTableViewImpl implements ServiceUnitStateTableView 
     public void start() throws Exception {
 
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
-
-        PulsarClusterMetadataSetup.createTenantIfAbsent
-                (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(),
-                        pulsar.getConfiguration().getClusterName());
-
-        PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, pulsar.getConfiguration().getClusterName(),
-                        pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
 
         ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 

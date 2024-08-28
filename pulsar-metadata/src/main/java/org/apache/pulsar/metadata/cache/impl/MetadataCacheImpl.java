@@ -272,12 +272,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
-    public Map<String, T> asMap() {
+    public Map<String, T> asMap(String pathPrefix) {
         Map<String, T> map = new HashMap<>();
         for (var e : objCache.synchronous().asMap().entrySet()) {
             if (e != null && e.getValue().isPresent()
                     && e.getValue().get().getValue() != null) {
-                map.put(e.getKey(), e.getValue().get().getValue());
+                String key = pathPrefix != null ? e.getKey().replaceFirst(pathPrefix, "") : e.getKey();
+                //log.info("asMap.key:{}", key);
+                map.put(key, e.getValue().get().getValue());
             }
         }
         return map;
