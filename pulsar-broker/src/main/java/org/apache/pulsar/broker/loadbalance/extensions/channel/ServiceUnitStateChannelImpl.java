@@ -1539,7 +1539,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
             if (!isActiveState(state) && now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
                 log.info("Found semi-terminal states to tombstone"
-                        + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+                        + " serviceUnt:{}, stateData:{}", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
                         log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}, "
