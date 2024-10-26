@@ -900,7 +900,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         }
 
         if (becameFollower) {
-            log.warn("The broker:{} became follower while initializing leader role.", pulsar.getBrokerId());
+            log.warn("The broker:{} became follower2 while initializing leader role.", pulsar.getBrokerId());
             playFollower();
             return;
         }
