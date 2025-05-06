@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Serializable;
+import java.util.function.BiConsumer;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -37,6 +38,9 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
+    private BiConsumer[] messageListeners;
+    private BiConsumer[] existingMessageListeners;
+
     @Override
     public TableViewConfigurationData clone() {
         try {
@@ -45,6 +49,8 @@ public class TableViewConfigurationData implements Serializable, Cloneable {
             clone.setAutoUpdatePartitionsSeconds(autoUpdatePartitionsSeconds);
             clone.setSubscriptionName(subscriptionName);
             clone.setTopicCompactionStrategyClassName(topicCompactionStrategyClassName);
+            clone.setMessageListeners(messageListeners);
+            clone.setExistingMessageListeners(existingMessageListeners);
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();

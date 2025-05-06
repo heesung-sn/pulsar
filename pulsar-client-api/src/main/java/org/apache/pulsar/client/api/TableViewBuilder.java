@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -137,4 +138,23 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableViewBuilder} builder instance
      */
     TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
+
+
+    /**
+     * Set the message listeners.
+     * If {@link TableViewBuilder#existingMessageListeners} are not specified, these listeners are used for both
+     * existing and tailing(future) messages in the topic.
+     * @param listeners message listeners
+     * @return the {@link TableViewBuilder} builder instance
+     */
+    TableViewBuilder<T> messageListeners(BiConsumer<String, T>... listeners);
+
+    /**
+     * Set the message listeners separately for existing messages in the topic.
+     * @param listeners message listeners
+     * @return
+     */
+    TableViewBuilder<T> existingMessageListeners(BiConsumer<String, T>... listeners);
+
+
 }
